@@ -136,6 +136,56 @@ def test_list_requires_auth(client):
     assert r.status_code == 403
 
 
+# ── CV event persistence ───────────────────────────────────────────────────
+
+def test_session_created_emits_session_started_event(client, auth_headers):
+    s = _create(client, auth_headers)
+    assert len(s["events"]) == 1
+    assert s["events"][0]["type"] == "session_started"
+    assert s["events"][0]["payload"] == {}
+
+
+def test_ingest_rep_event_and_read_from_history(client, auth_headers):
+    s = _create(client, auth_headers)
+    session_id = s["id"]
+
+    payload = {"exercise": "squat", "rep": 1, "form_score": 85, "flags": []}
+    r = client.post(
+        f"/sessions/{session_id}/events",
+        json={"type": "rep_event", "ts": "2026-03-03T01:00:00Z", "payload": payload},
+        headers=auth_headers,
+    )
+    assert r.status_code == 201
+    ev = r.json()
+    assert ev["type"] == "rep_event"
+    assert ev["payload"] == payload
+
+    # events appear in session history listing
+    r2 = client.get("/sessions/", headers=auth_headers)
+    items = r2.json()["items"]
+    session_in_list = next(i for i in items if i["id"] == session_id)
+    event_types = [e["type"] for e in session_in_list["events"]]
+    assert "session_started" in event_types
+    assert "rep_event" in event_types
+    rep_ev = next(e for e in session_in_list["events"] if e["type"] == "rep_event")
+    assert rep_ev["payload"]["form_score"] == 85
+
+
+def test_ingest_event_rejects_wrong_user(client, auth_headers):
+    s = _create(client, auth_headers)
+
+    client.post("/users/register", json={"email": "other2@example.com", "password": "pass1234"})
+    r2 = client.post("/auth/login", json={"email": "other2@example.com", "password": "pass1234"})
+    other_headers = {"Authorization": f"Bearer {r2.json()['access_token']}"}
+
+    r = client.post(
+        f"/sessions/{s['id']}/events",
+        json={"type": "rep_event", "ts": "2026-03-03T01:00:00Z", "payload": {}},
+        headers=other_headers,
+    )
+    assert r.status_code == 404
+
+
 # ── isolation: users cannot see each other's sessions ─────────────────────
 
 def test_session_isolation(client, auth_headers):

@@ -22,6 +22,18 @@ class SessionCreate(BaseModel):
     pain_level: int | None = None  # 0-10
 
 
+class EventIn(BaseModel):
+    type: str
+    ts: str  # ISO timestamp from client
+    payload: dict = {}
+
+
+class EventOut(BaseModel):
+    type: str
+    ts: str
+    payload: dict
+
+
 class SessionOut(BaseModel):
     id: str
     user_id: str
@@ -31,6 +43,7 @@ class SessionOut(BaseModel):
     notes: str | None
     pain_level: int | None
     created_at: str
+    events: list[EventOut] = []
 
 
 class SessionsPage(BaseModel):
@@ -49,13 +62,31 @@ class AdherenceSummary(BaseModel):
     total_sessions: int
 
 
+def _session_out(s: dict) -> SessionOut:
+    events = [EventOut(**e) for e in store.get_events(s["id"])]
+    return SessionOut(**s, events=events)
+
+
 @router.post("/", response_model=SessionOut, status_code=status.HTTP_201_CREATED)
 async def create_session(
     body: SessionCreate,
     current_user: dict = Depends(get_current_user),
 ) -> SessionOut:
     s = store.create_session(current_user["id"], body.model_dump())
-    return SessionOut(**s)
+    return _session_out(s)
+
+
+@router.post("/{session_id}/events", response_model=EventOut, status_code=status.HTTP_201_CREATED)
+async def ingest_event(
+    session_id: str,
+    body: EventIn,
+    current_user: dict = Depends(get_current_user),
+) -> EventOut:
+    s = store.get_session(session_id)
+    if s is None or s["user_id"] != current_user["id"]:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    event = store.append_event(session_id, body.type, body.ts, body.payload)
+    return EventOut(**event)
 
 
 # NOTE: /summary must be declared before /{session_id} routes to avoid capture.
@@ -82,7 +113,7 @@ async def list_sessions(
         page_size=page_size,
     )
     return SessionsPage(
-        items=[SessionOut(**s) for s in items],
+        items=[_session_out(s) for s in items],
         total=total,
         page=page,
         page_size=page_size,
@@ -99,4 +130,4 @@ async def complete_session(
     if s is None or s["user_id"] != current_user["id"]:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
     s = store.update_session(session_id, {"status": "completed"})
-    return SessionOut(**s)
+    return _session_out(s)

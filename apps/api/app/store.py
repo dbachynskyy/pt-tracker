@@ -19,6 +19,7 @@ _users: dict[str, dict] = {}
 _users_by_email: dict[str, str] = {}  # email -> user_id
 _plans: dict[str, dict] = {}
 _sessions: dict[str, dict] = {}
+_events: dict[str, list] = {}  # session_id -> [{type, ts, payload}]
 
 
 # ── JSON persistence helpers ────────────────────────────────────────────────
@@ -32,6 +33,7 @@ def _persist() -> None:
         "users_by_email": _users_by_email,
         "plans": _plans,
         "sessions": _sessions,
+        "events": _events,
     }
     tmp = settings.STORE_FILE + ".tmp"
     with open(tmp, "w") as f:
@@ -51,6 +53,7 @@ def _load_from_file() -> None:
     _users_by_email.update(data.get("users_by_email", {}))
     _plans.update(data.get("plans", {}))
     _sessions.update(data.get("sessions", {}))
+    _events.update(data.get("events", {}))
 
 
 _load_from_file()
@@ -105,10 +108,23 @@ def get_plan(plan_id: str) -> dict | None:
 
 def create_session(user_id: str, data: dict) -> dict:
     sid = _uuid()
-    session = {"id": sid, "user_id": user_id, "status": "in_progress", "created_at": _now(), **data}
+    ts = _now()
+    session = {"id": sid, "user_id": user_id, "status": "in_progress", "created_at": ts, **data}
     _sessions[sid] = session
+    _events[sid] = [{"type": "session_started", "ts": ts, "payload": {}}]
     _persist()
     return session
+
+
+def append_event(session_id: str, event_type: str, ts: str, payload: dict) -> dict:
+    event = {"type": event_type, "ts": ts, "payload": payload}
+    _events.setdefault(session_id, []).append(event)
+    _persist()
+    return event
+
+
+def get_events(session_id: str) -> list:
+    return list(_events.get(session_id, []))
 
 
 def list_sessions(
@@ -185,6 +201,7 @@ def _reset() -> None:
     _users_by_email.clear()
     _plans.clear()
     _sessions.clear()
+    _events.clear()
     from app.config import settings
     if settings.STORE_BACKEND == "json" and os.path.exists(settings.STORE_FILE):
         os.remove(settings.STORE_FILE)

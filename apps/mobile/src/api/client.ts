@@ -59,6 +59,29 @@ export interface CreateSessionBody {
   pain_level?: number | null;
 }
 
+export interface SessionsPage {
+  items: Session[];
+  total: number;
+  page: number;
+  page_size: number;
+  has_more: boolean;
+}
+
+export interface SessionsFilter {
+  page?: number;
+  page_size?: number;
+  exercise_type?: string;
+  date?: string;
+}
+
+export interface AdherenceSummary {
+  streak_days: number;
+  completed_7d: number;
+  completed_30d: number;
+  total_completed: number;
+  total_sessions: number;
+}
+
 // ── API client ────────────────────────────────────────────────────────────
 
 class ApiClient {
@@ -106,12 +129,22 @@ class ApiClient {
     return this.request<Session>('POST', '/sessions/', body);
   }
 
-  listSessions() {
-    return this.request<Session[]>('GET', '/sessions/');
+  listSessions(params?: SessionsFilter) {
+    const qs = new URLSearchParams();
+    if (params?.page != null) qs.set('page', String(params.page));
+    if (params?.page_size != null) qs.set('page_size', String(params.page_size));
+    if (params?.exercise_type) qs.set('exercise_type', params.exercise_type);
+    if (params?.date) qs.set('date', params.date);
+    const q = qs.toString();
+    return this.request<SessionsPage>('GET', `/sessions/${q ? `?${q}` : ''}`);
   }
 
   completeSession(id: string) {
     return this.request<Session>('PATCH', `/sessions/${id}/complete`);
+  }
+
+  getAdherenceSummary() {
+    return this.request<AdherenceSummary>('GET', '/sessions/summary');
   }
 }
 

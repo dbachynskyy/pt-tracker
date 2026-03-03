@@ -1,38 +1,14 @@
 version: "3.9"
 
 services:
-  db:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: pt_adherence
-    ports:
-      - "5432:5432"
-    volumes:
-      - pg_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   api:
     build:
       context: ./apps/api
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/pt_adherence
+      SECRET_KEY: change-me-in-production
+      CORS_ORIGINS: '["http://localhost:8081","exp://localhost:8081","http://localhost:19006"]'
     ports:
       - "8000:8000"
     volumes:
       - ./apps/api:/app
-    depends_on:
-      db:
-        condition: service_healthy
-
-volumes:
-  pg_data:

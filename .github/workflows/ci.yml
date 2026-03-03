@@ -100,6 +100,82 @@ jobs:
           shellcheck scripts/qa-checklist.sh
 
   # ─────────────────────────────────────────────
+  # 6. CV detector quality gate
+  #    Runs the full Helios CV test matrix on every PR.
+  #    Hard thresholds (see docs/ci-quality-gates.md):
+  #      ACCURACY_FLOOR      100% scenario pass rate
+  #      FALSE_POSITIVE_CAP  0 false-positive guard failures
+  #      LOCKOUT_CORRECTNESS 100% anti-cheat block pass rate
+  #    Artifacts uploaded regardless of gate result.
+  #
+  #    Required repository configuration:
+  #      vars.HELIOS_REPO   — GitHub repo for pt-helios (e.g. "your-org/pt-helios")
+  #      vars.HELIOS_REF    — Branch to check out (default: "feat/helios-cv")
+  #      secrets.HELIOS_GITHUB_TOKEN — PAT with read access to HELIOS_REPO
+  # ─────────────────────────────────────────────
+  cv-quality-gate:
+    name: CV detector quality gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pt-orion
+        uses: actions/checkout@v4
+
+      - name: Checkout pt-helios (CV source)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.HELIOS_REPO }}
+          ref: ${{ vars.HELIOS_REF || 'feat/helios-cv' }}
+          path: pt-helios
+          token: ${{ secrets.HELIOS_GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Helios CV dependencies
+        working-directory: pt-helios/apps/mobile
+        run: npm ci
+
+      - name: Run CV test suite (Jest JSON)
+        working-directory: pt-helios/apps/mobile
+        # Jest exits non-zero on test failures; capture output regardless.
+        # --outputFile writes JSON to the workspace root for the next step.
+        run: |
+          npx jest \
+            --testPathPattern="cv" \
+            --json \
+            --outputFile="${GITHUB_WORKSPACE}/jest-cv-results.json" \
+            --runInBand \
+            2>/dev/null || true
+
+      - name: Verify Jest output was produced
+        run: |
+          if [[ ! -s jest-cv-results.json ]]; then
+            echo "ERROR: Jest produced no JSON output. Check Helios CV test setup."
+            exit 1
+          fi
+          echo "Jest output: $(wc -c < jest-cv-results.json) bytes"
+
+      - name: Enforce quality gates and generate artifacts
+        # Exit code 1 = threshold violation → job fails (gate enforcement).
+        # Exit code 2 = setup error (parse failure, missing input).
+        # Artifacts are written to ./artifacts/ regardless of gate result.
+        run: node scripts/cv-generate-artifacts.js jest-cv-results.json
+
+      - name: Upload CV diagnostics artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cv-quality-gate-${{ github.run_id }}
+          path: |
+            artifacts/summary.json
+            artifacts/junit.xml
+            artifacts/quality-report.md
+          retention-days: 30
+          if-no-files-found: warn
+
+  # ─────────────────────────────────────────────
   # All-green gate (branch protection target)
   # ─────────────────────────────────────────────
   ci-gate:
@@ -111,5 +187,6 @@ jobs:
       - validate-events
       - artefact-check
       - shellcheck
+      - cv-quality-gate
     steps:
       - run: echo "All CI checks passed."

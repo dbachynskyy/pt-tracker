@@ -1,0 +1,73 @@
+name: Release Readiness
+
+on:
+  # Run manually from the Actions tab before cutting a release
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
+  # Also run on tags that look like release candidates or releases
+  push:
+    tags:
+      - "v*.*.*-rc*"
+      - "v*.*.*"
+
+jobs:
+  readiness-check:
+    name: Release readiness (${{ github.event.inputs.environment || 'tag' }})
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Redocly CLI
+        run: npm install -g @redocly/cli@1.x
+
+      - name: Install jq (required by readiness checker)
+        run: sudo apt-get install -y jq
+
+      # Full artefact + schema + tool check
+      - name: Run release readiness checker
+        run: python3 scripts/check_release_readiness.py --no-color
+
+      # OpenAPI lint — a broken spec is a ship blocker
+      - name: Lint OpenAPI spec
+        run: npx @redocly/cli lint docs/openapi.yaml --format=stylish
+
+      # JSON schema validity
+      - name: Validate JSON schemas
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('schemas/events.schema.json','utf8')); console.log('events.schema.json OK')"
+          node scripts/test-api-schemas.js
+
+      # P0 gate list (non-interactive, exit non-zero if anything is unresolved)
+      - name: Print P0 gate checklist
+        run: bash scripts/qa-checklist.sh --non-interactive
+
+      # Summary annotation on the workflow run
+      - name: Write job summary
+        if: always()
+        run: |
+          echo "## Release Readiness Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Artefact check | see step output |" >> $GITHUB_STEP_SUMMARY
+          echo "| OpenAPI lint | see step output |" >> $GITHUB_STEP_SUMMARY
+          echo "| JSON schema validity | see step output |" >> $GITHUB_STEP_SUMMARY
+          echo "| P0 gate checklist | see step output |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Triggered by: \`${{ github.actor }}\` on ref \`${{ github.ref }}\`" >> $GITHUB_STEP_SUMMARY

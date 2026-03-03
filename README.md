@@ -1,4 +1,4 @@
-# PT Adherence MVP
+# PT Tracker (PT Adherence MVP)
 
 MVP for home rehab adherence with form-aware exercise tracking and adaptive coaching.
 
@@ -11,4 +11,3 @@ Build a focused MVP that improves completion and consistency for rehab exercises
 - Basic form/repetition feedback
 - Streaks + adherence dashboard
 - Exportable weekly summary
-

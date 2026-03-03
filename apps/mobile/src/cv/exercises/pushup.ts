@@ -119,7 +119,9 @@ export class PushupAnalyzer implements ExerciseAnalyzer {
 
   private phase: PushupPhase = "UP";
   private repStartMs = 0;
-  private reachedBottom = false;
+  private minElbowAngle = 180; // track lowest angle reached this rep
+  // Flags accumulated during the descent/bottom phase for the whole rep
+  private repFlags: FormFlag[] = [];
 
   processFrame(frame: PoseFrame, sessionMs: number): RepCandidate | null {
     const rightElbowAngle = angleDeg(
@@ -136,16 +138,21 @@ export class PushupAnalyzer implements ExerciseAnalyzer {
 
     const hipAngle = hipAlignmentAngle(frame);
 
-    const flags: FormFlag[] = [];
+    const frameFlags: FormFlag[] = [];
 
-    // Hip deviation check (runs every frame for form feedback)
+    // Hip deviation check — accumulate across rep
     if (Math.abs(hipAngle - 180) > PUSHUP_CONFIG.HIP_DEVIATION_DEG) {
-      flags.push("LOWER_BACK_ROUNDING");
+      frameFlags.push("LOWER_BACK_ROUNDING");
     }
 
-    // Elbow flare check (placeholder — full impl needs 3-D landmark z depth)
+    // Elbow flare check (2-D proxy — full impl would use z depth)
     if (Math.abs(rightElbowAngle - leftElbowAngle) > PUSHUP_CONFIG.ELBOW_FLARE_DEG) {
-      flags.push("ELBOW_FLARE");
+      frameFlags.push("ELBOW_FLARE");
+    }
+
+    // Accumulate flags across the rep (deduplicated on emit)
+    for (const f of frameFlags) {
+      if (!this.repFlags.includes(f)) this.repFlags.push(f);
     }
 
     // Phase state machine
@@ -153,32 +160,43 @@ export class PushupAnalyzer implements ExerciseAnalyzer {
       case "UP": {
         if (elbowAngle < PUSHUP_CONFIG.ELBOW_ANGLE_DOWN_DEG) {
           this.phase = "DOWN";
-          this.reachedBottom = true;
+          this.repStartMs = sessionMs;
+          this.minElbowAngle = elbowAngle;
         } else if (elbowAngle < PUSHUP_CONFIG.ELBOW_ANGLE_UP_DEG) {
           this.phase = "SEEKING_DOWN";
+          this.repStartMs = sessionMs;
+          this.minElbowAngle = elbowAngle;
         }
         break;
       }
 
       case "SEEKING_DOWN": {
+        this.minElbowAngle = Math.min(this.minElbowAngle, elbowAngle);
         if (elbowAngle < PUSHUP_CONFIG.ELBOW_ANGLE_DOWN_DEG) {
           this.phase = "DOWN";
-          this.reachedBottom = true;
         } else if (elbowAngle >= PUSHUP_CONFIG.ELBOW_ANGLE_UP_DEG) {
-          // Partial movement — reset
+          // Partial rep — returned to UP without reaching full depth; count with flag
+          const durationMs = sessionMs - this.repStartMs;
+          const flags: FormFlag[] = [...this.repFlags, "PARTIAL_ROM"];
+          if (durationMs < PUSHUP_CONFIG.MIN_REP_MS) flags.push("TOO_FAST");
+          const formScore = Math.max(0, 100 - flags.length * 20);
+          const snapshot = buildAuditSnapshot(frame);
           this.phase = "UP";
-          this.reachedBottom = false;
+          this.minElbowAngle = 180;
+          this.repFlags = [];
+          return { durationMs, formScore, flags, auditSnapshot: snapshot };
         }
         break;
       }
 
       case "DOWN": {
+        this.minElbowAngle = Math.min(this.minElbowAngle, elbowAngle);
         if (elbowAngle >= PUSHUP_CONFIG.ELBOW_ANGLE_UP_DEG) {
           const durationMs = sessionMs - this.repStartMs;
-          this.phase = "UP";
-          this.repStartMs = sessionMs;
+          const flags = [...this.repFlags];
 
-          if (!this.reachedBottom) {
+          // PARTIAL_ROM: never crossed the DOWN threshold
+          if (this.minElbowAngle > PUSHUP_CONFIG.ELBOW_ANGLE_DOWN_DEG) {
             flags.push("PARTIAL_ROM");
           }
           if (durationMs < PUSHUP_CONFIG.MIN_REP_MS) {
@@ -186,14 +204,14 @@ export class PushupAnalyzer implements ExerciseAnalyzer {
           }
 
           const formScore = Math.max(0, 100 - flags.length * 20);
-          this.reachedBottom = false;
+          const snapshot = buildAuditSnapshot(frame);
 
-          return {
-            durationMs,
-            formScore,
-            flags,
-            auditSnapshot: buildAuditSnapshot(frame),
-          };
+          this.phase = "UP";
+          this.repStartMs = sessionMs;
+          this.minElbowAngle = 180;
+          this.repFlags = [];
+
+          return { durationMs, formScore, flags, auditSnapshot: snapshot };
         }
         break;
       }
@@ -205,6 +223,7 @@ export class PushupAnalyzer implements ExerciseAnalyzer {
   reset(): void {
     this.phase = "UP";
     this.repStartMs = 0;
-    this.reachedBottom = false;
+    this.minElbowAngle = 180;
+    this.repFlags = [];
   }
 }

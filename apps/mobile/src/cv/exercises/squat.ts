@@ -98,7 +98,8 @@ export class SquatAnalyzer implements ExerciseAnalyzer {
   private phase: SquatPhase = "UP";
   private phaseStartMs = 0;
   private repStartMs = 0;
-  private reachedBottom = false;
+  private minKneeAngle = 180;
+  private repFlags: FormFlag[] = []; // flags accumulated across the whole rep
 
   processFrame(frame: PoseFrame, sessionMs: number): RepCandidate | null {
     const rightKneeAngle = angleDeg(
@@ -113,11 +114,9 @@ export class SquatAnalyzer implements ExerciseAnalyzer {
     );
     const kneeAngle = (rightKneeAngle + leftKneeAngle) / 2;
 
-    const flags: FormFlag[] = [];
-
-    // Bilateral asymmetry
+    // Bilateral asymmetry — accumulate into repFlags (deduplicated)
     if (Math.abs(rightKneeAngle - leftKneeAngle) > SQUAT_CONFIG.ASYMMETRY_DEG) {
-      flags.push("ASYMMETRIC_HIPS");
+      if (!this.repFlags.includes("ASYMMETRIC_HIPS")) this.repFlags.push("ASYMMETRIC_HIPS");
     }
 
     // Phase state machine
@@ -126,51 +125,51 @@ export class SquatAnalyzer implements ExerciseAnalyzer {
         if (kneeAngle < SQUAT_CONFIG.KNEE_ANGLE_DOWN_DEG) {
           this.phase = "DOWN";
           this.phaseStartMs = sessionMs;
-          this.reachedBottom = true;
+          this.repStartMs = sessionMs;
+          this.minKneeAngle = kneeAngle;
         } else if (kneeAngle < SQUAT_CONFIG.KNEE_ANGLE_UP_DEG) {
           this.phase = "SEEKING_DOWN";
           this.phaseStartMs = sessionMs;
+          this.repStartMs = sessionMs;
+          this.minKneeAngle = kneeAngle;
         }
         break;
       }
 
       case "SEEKING_DOWN": {
+        this.minKneeAngle = Math.min(this.minKneeAngle, kneeAngle);
         if (kneeAngle < SQUAT_CONFIG.KNEE_ANGLE_DOWN_DEG) {
           this.phase = "DOWN";
-          this.reachedBottom = true;
         } else if (kneeAngle >= SQUAT_CONFIG.KNEE_ANGLE_UP_DEG) {
-          // Returned to standing without reaching bottom — partial rep, reset
+          // Partial rep — returned to UP without reaching full depth; count with flag
+          const durationMs = sessionMs - this.repStartMs;
+          const flags: FormFlag[] = [...this.repFlags, "INSUFFICIENT_DEPTH"];
+          if (durationMs < SQUAT_CONFIG.MIN_REP_MS) flags.push("TOO_FAST");
+          const formScore = Math.max(0, 100 - flags.length * 20);
+          const snapshot = buildAuditSnapshot(frame);
           this.phase = "UP";
-          this.reachedBottom = false;
+          this.minKneeAngle = 180;
+          this.repFlags = [];
+          return { durationMs, formScore, flags, auditSnapshot: snapshot };
         }
         break;
       }
 
       case "DOWN": {
+        this.minKneeAngle = Math.min(this.minKneeAngle, kneeAngle);
         if (kneeAngle >= SQUAT_CONFIG.KNEE_ANGLE_UP_DEG) {
-          // Completed UP phase — rep done
+          // Full cycle complete — emit rep candidate
           const durationMs = sessionMs - this.repStartMs;
+          const flags: FormFlag[] = [...this.repFlags];
+          if (this.minKneeAngle > SQUAT_CONFIG.KNEE_ANGLE_DOWN_DEG) flags.push("INSUFFICIENT_DEPTH");
+          if (durationMs < SQUAT_CONFIG.MIN_REP_MS) flags.push("TOO_FAST");
+          const formScore = Math.max(0, 100 - flags.length * 20);
+          const snapshot = buildAuditSnapshot(frame);
           this.phase = "UP";
           this.repStartMs = sessionMs;
-
-          // Form scoring (placeholder: start at 100, deduct per flag)
-          if (!this.reachedBottom || kneeAngle > SQUAT_CONFIG.MIN_DEPTH_DEG) {
-            flags.push("INSUFFICIENT_DEPTH");
-          }
-          if (durationMs < SQUAT_CONFIG.MIN_REP_MS) {
-            flags.push("TOO_FAST");
-          }
-
-          const formScore = Math.max(0, 100 - flags.length * 20);
-
-          this.reachedBottom = false;
-
-          return {
-            durationMs,
-            formScore,
-            flags,
-            auditSnapshot: buildAuditSnapshot(frame),
-          };
+          this.minKneeAngle = 180;
+          this.repFlags = [];
+          return { durationMs, formScore, flags, auditSnapshot: snapshot };
         }
         break;
       }
@@ -183,6 +182,7 @@ export class SquatAnalyzer implements ExerciseAnalyzer {
     this.phase = "UP";
     this.phaseStartMs = 0;
     this.repStartMs = 0;
-    this.reachedBottom = false;
+    this.minKneeAngle = 180;
+    this.repFlags = [];
   }
 }

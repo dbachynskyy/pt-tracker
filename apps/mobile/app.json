@@ -22,7 +22,9 @@
       "package": "com.ptadherence.app"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-font",
+      "expo-camera"
     ],
     "experiments": {
       "typedRoutes": true

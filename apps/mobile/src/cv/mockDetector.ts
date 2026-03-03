@@ -1,8 +1,9 @@
 /**
- * Mock CV detectors for plank and sit-to-stand (plus squat/pushup stubs).
+ * CV detector wiring for Atlas mobile.
  *
- * These drive Atlas UI integration points while Helios builds real detectors.
- * Swap createMockDetector() calls for real detector factories once ready.
+ * Mock detector is opt-in only via EXPO_PUBLIC_ENABLE_MOCK_CV=true.
+ * By default, if no real CV source is connected, detector emits zero reps
+ * and reports disconnected state so session UI can fail safely.
  */
 
 import {
@@ -20,6 +21,8 @@ const REP_EVERY_TICKS = 4;
 /** Confidence ramps up over the first few ticks. */
 const CONFIDENCE_RAMP_TICKS = 5;
 
+const ENABLE_MOCK_CV = process.env.EXPO_PUBLIC_ENABLE_MOCK_CV === 'true';
+
 function calcConfidence(ticks: number): number {
   return Math.min(1, ticks / CONFIDENCE_RAMP_TICKS);
 }
@@ -36,6 +39,29 @@ function collectFlags(ticks: number, reps: RepResult[]): ConfidenceFlag[] {
     for (const f of r.flags) flags.add(f);
   }
   return Array.from(flags);
+}
+
+function buildDisconnectedOutput(exerciseType: ExerciseType): DetectorOutput {
+  return {
+    exerciseType,
+    repCount: 0,
+    formScore: 100,
+    confidence: 0,
+    flags: ['LOW_CONFIDENCE'],
+    reps: [],
+    elapsedMs: 0,
+  };
+}
+
+export function createUnavailableDetector(exerciseType: ExerciseType): Detector {
+  return {
+    exerciseType,
+    start(onFrame) {
+      onFrame(buildDisconnectedOutput(exerciseType));
+    },
+    stop() {},
+    reset() {},
+  };
 }
 
 /**
@@ -104,17 +130,25 @@ export function createMockDetector(exerciseType: ExerciseType): Detector {
   };
 }
 
-/** Detector registry — replace entries with real detector factories. */
-export const detectorRegistry: Record<
-  ExerciseType,
-  (type: ExerciseType) => Detector
-> = {
-  squat: createMockDetector,
-  pushup: createMockDetector,
-  plank: createMockDetector,
-  sit_to_stand: createMockDetector,
-};
+/**
+ * Placeholder for real CV integration.
+ * Return null until Helios/real pipeline is connected.
+ */
+function createRealDetector(_exerciseType: ExerciseType): Detector | null {
+  return null;
+}
+
+export function isMockCvEnabled(): boolean {
+  return ENABLE_MOCK_CV;
+}
 
 export function createDetector(exerciseType: ExerciseType): Detector {
-  return detectorRegistry[exerciseType](exerciseType);
+  if (ENABLE_MOCK_CV) {
+    return createMockDetector(exerciseType);
+  }
+
+  const realDetector = createRealDetector(exerciseType);
+  if (realDetector) return realDetector;
+
+  return createUnavailableDetector(exerciseType);
 }

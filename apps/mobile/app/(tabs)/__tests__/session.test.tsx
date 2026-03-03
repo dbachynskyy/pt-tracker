@@ -13,6 +13,14 @@ jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }), {
   virtual: true,
 });
 
+jest.mock('expo-camera', () => ({
+  Camera: {
+    requestCameraPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted', granted: true }),
+  },
+  PermissionStatus: { GRANTED: 'granted' },
+  useCameraPermissions: () => [{ granted: true, status: 'granted' }, jest.fn().mockResolvedValue({ status: 'granted', granted: true })],
+}));
+
 // Mock the API client
 jest.mock('../../../src/api/client', () => ({
   api: {
@@ -35,6 +43,7 @@ jest.mock('../../../src/cv/mockDetector', () => ({
     stop: mockStop,
     reset: mockReset,
   }),
+  isMockCvEnabled: () => true,
 }));
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

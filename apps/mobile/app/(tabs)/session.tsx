@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -8,10 +8,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Camera, PermissionStatus, useCameraPermissions } from 'expo-camera';
 import { api, Session } from '../../src/api/client';
 import { CVStatsCard } from '../../src/components/CVStatsCard';
 import { ExerciseSelector } from '../../src/components/ExerciseSelector';
-import { createDetector } from '../../src/cv/mockDetector';
+import { createDetector, isMockCvEnabled } from '../../src/cv/mockDetector';
 import { Detector, DetectorOutput, ExerciseType, EXERCISE_LABELS } from '../../src/cv/types';
 
 type Phase = 'idle' | 'active' | 'done';
@@ -23,14 +24,36 @@ export default function SessionScreen() {
   const [selectedExercise, setSelectedExercise] = useState<ExerciseType>('squat');
   const [detectorOutput, setDetectorOutput] = useState<DetectorOutput | null>(null);
   const [finalOutput, setFinalOutput] = useState<DetectorOutput | null>(null);
+  const [cvUnavailable, setCvUnavailable] = useState(false);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   const detectorRef = useRef<Detector | null>(null);
+  const mockEnabled = useMemo(() => isMockCvEnabled(), []);
 
-  const startDetector = useCallback((type: ExerciseType) => {
-    const det = createDetector(type);
-    detectorRef.current = det;
-    det.start((output) => setDetectorOutput(output));
-  }, []);
+  const ensureCameraPermission = useCallback(async () => {
+    if (cameraPermission?.granted) return true;
+
+    const permissionResponse = cameraPermission
+      ? await requestCameraPermission()
+      : await Camera.requestCameraPermissionsAsync();
+
+    return permissionResponse.status === PermissionStatus.GRANTED;
+  }, [cameraPermission, requestCameraPermission]);
+
+  const startDetector = useCallback(
+    (type: ExerciseType) => {
+      const det = createDetector(type);
+      detectorRef.current = det;
+      det.start((output) => {
+        const disconnected =
+          !mockEnabled && output.repCount === 0 && output.confidence === 0;
+
+        setCvUnavailable(disconnected);
+        setDetectorOutput(output);
+      });
+    },
+    [mockEnabled],
+  );
 
   const stopDetector = useCallback(() => {
     detectorRef.current?.stop();
@@ -38,12 +61,19 @@ export default function SessionScreen() {
   }, []);
 
   const startSession = useCallback(async () => {
+    const hasPermission = await ensureCameraPermission();
+    if (!hasPermission) {
+      Alert.alert('Camera permission required', 'Please allow camera access to run CV sessions.');
+      return;
+    }
+
     setLoading(true);
     try {
       const s = await api.createSession({});
       setSession(s);
       setDetectorOutput(null);
       setFinalOutput(null);
+      setCvUnavailable(false);
       setPhase('active');
       startDetector(selectedExercise);
     } catch (e: unknown) {
@@ -51,7 +81,7 @@ export default function SessionScreen() {
     } finally {
       setLoading(false);
     }
-  }, [selectedExercise, startDetector]);
+  }, [ensureCameraPermission, selectedExercise, startDetector]);
 
   const completeSession = useCallback(async () => {
     if (!session) return;
@@ -78,6 +108,7 @@ export default function SessionScreen() {
     setSession(null);
     setDetectorOutput(null);
     setFinalOutput(null);
+    setCvUnavailable(false);
   }, [stopDetector]);
 
   return (
@@ -86,10 +117,16 @@ export default function SessionScreen() {
 
       {phase === 'idle' && (
         <>
-          <ExerciseSelector
-            selected={selectedExercise}
-            onSelect={setSelectedExercise}
-          />
+          <ExerciseSelector selected={selectedExercise} onSelect={setSelectedExercise} />
+          {!cameraPermission?.granted && (
+            <TouchableOpacity
+              style={styles.permissionBtn}
+              onPress={ensureCameraPermission}
+              testID="request-camera-permission-btn"
+            >
+              <Text style={styles.btnText}>Allow Camera</Text>
+            </TouchableOpacity>
+          )}
           <Text style={styles.subtitle}>Ready to start your PT session?</Text>
           <TouchableOpacity
             style={styles.startBtn}
@@ -97,11 +134,7 @@ export default function SessionScreen() {
             disabled={loading}
             testID="start-session-btn"
           >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.btnText}>Start Session</Text>
-            )}
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Start Session</Text>}
           </TouchableOpacity>
         </>
       )}
@@ -115,13 +148,15 @@ export default function SessionScreen() {
 
           <View style={styles.exerciseBadgeRow}>
             <View style={styles.exerciseBadge}>
-              <Text style={styles.exerciseBadgeText}>
-                {EXERCISE_LABELS[selectedExercise]}
-              </Text>
+              <Text style={styles.exerciseBadgeText}>{EXERCISE_LABELS[selectedExercise]}</Text>
             </View>
           </View>
 
-          {detectorOutput ? (
+          {cvUnavailable ? (
+            <View style={styles.cvUnavailable} testID="cv-unavailable">
+              <Text style={styles.cvUnavailableText}>Camera/CV not connected</Text>
+            </View>
+          ) : detectorOutput ? (
             <CVStatsCard output={detectorOutput} />
           ) : (
             <View style={styles.detectorWaiting} testID="detector-waiting">
@@ -136,11 +171,7 @@ export default function SessionScreen() {
             disabled={loading}
             testID="complete-session-btn"
           >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.btnText}>Complete Session</Text>
-            )}
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Complete Session</Text>}
           </TouchableOpacity>
         </>
       )}
@@ -150,11 +181,7 @@ export default function SessionScreen() {
           <Text style={styles.doneText}>Session complete!</Text>
           <Text style={styles.subtitle}>Great work. Keep up the streak.</Text>
           {finalOutput && <CVStatsCard output={finalOutput} />}
-          <TouchableOpacity
-            style={styles.startBtn}
-            onPress={reset}
-            testID="start-another-btn"
-          >
+          <TouchableOpacity style={styles.startBtn} onPress={reset} testID="start-another-btn">
             <Text style={styles.btnText}>Start Another</Text>
           </TouchableOpacity>
         </>
@@ -206,11 +233,31 @@ const styles = StyleSheet.create({
     marginVertical: 20,
   },
   detectorWaitingText: { color: '#6B7280', fontSize: 14 },
+  cvUnavailable: {
+    marginVertical: 20,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#FEF2F2',
+    alignItems: 'center',
+  },
+  cvUnavailableText: {
+    color: '#B91C1C',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   doneText: { fontSize: 24, fontWeight: '700', color: '#059669', marginBottom: 8 },
   startBtn: {
     backgroundColor: '#2563EB',
     paddingHorizontal: 40,
     paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  permissionBtn: {
+    backgroundColor: '#1D4ED8',
+    paddingHorizontal: 40,
+    paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 8,

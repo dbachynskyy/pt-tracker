@@ -251,6 +251,175 @@ export function pushupRepSequence(
 }
 
 // ---------------------------------------------------------------------------
+// Sit-to-stand sequence builder (reuses squatFrame — same joints, reversed start)
+// ---------------------------------------------------------------------------
+
+export interface SitToStandSeqOpts {
+  /** Override peak standing angle for the left knee only (tests asymmetry). */
+  leftStandingAngle?: number;
+  visibility?: number;
+}
+
+/**
+ * Generate a sequence of PoseFrames + timestamps for N sit-to-stand reps.
+ * Each rep: seated (low knee angle) → standing (high knee angle) → seated.
+ * Warmup frames are at seatedAngle.
+ */
+export function sitToStandRepSequence(
+  reps: number,
+  repDurationMs: number,
+  fps = 30,
+  seatedAngle = 90,
+  standingAngle = 170,
+  opts: SitToStandSeqOpts = {},
+): Array<{ frame: PoseFrame; ms: number }> {
+  const { leftStandingAngle = standingAngle, visibility } = opts;
+  const frameDurMs = 1000 / fps;
+  const framesPerRep = Math.max(2, Math.round(repDurationMs / frameDurMs));
+  const ascentFrames = Math.max(1, Math.floor(framesPerRep / 2));
+  const descentFrames = framesPerRep - ascentFrames;
+
+  const result: Array<{ frame: PoseFrame; ms: number }> = [];
+
+  // 11 warmup frames at seated position
+  for (let i = 0; i < 11; i++) {
+    result.push({ frame: squatFrame(seatedAngle, { leftKneeAngleDeg: seatedAngle, visibility }), ms: i * frameDurMs });
+  }
+
+  let t = 11 * frameDurMs;
+
+  for (let rep = 0; rep < reps; rep++) {
+    // Ascent: seatedAngle → standingAngle (inclusive endpoint at i = ascentFrames-1)
+    for (let i = 0; i < ascentFrames; i++) {
+      const rightAngle = lerp(seatedAngle, standingAngle, i, ascentFrames);
+      const leftAngle  = lerp(seatedAngle, leftStandingAngle, i, ascentFrames);
+      result.push({ frame: squatFrame(rightAngle, { leftKneeAngleDeg: leftAngle, visibility }), ms: t });
+      t += frameDurMs;
+    }
+    // Descent: standingAngle → seatedAngle (inclusive endpoint at i = descentFrames-1)
+    for (let i = 0; i < descentFrames; i++) {
+      const rightAngle = lerp(standingAngle, seatedAngle, i, descentFrames);
+      const leftAngle  = lerp(leftStandingAngle, seatedAngle, i, descentFrames);
+      result.push({ frame: squatFrame(rightAngle, { leftKneeAngleDeg: leftAngle, visibility }), ms: t });
+      t += frameDurMs;
+    }
+  }
+
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Plank frame builder
+// ---------------------------------------------------------------------------
+
+const LM_PLANK = {
+  LEFT_SHOULDER: 11, RIGHT_SHOULDER: 12,
+  LEFT_HIP: 23, RIGHT_HIP: 24,
+  LEFT_ANKLE: 27, RIGHT_ANKLE: 28,
+} as const;
+
+/**
+ * Compute the hip Y that produces the given shoulder-hip-ankle alignment angle.
+ * Shoulder midpoint: (0.2, 0.5), Ankle midpoint: (0.8, 0.5), Hip x: 0.5.
+ * A perfect 180° gives hipY = 0.5; any sag pushes hipY > 0.5.
+ */
+function hipYFromAlignmentAngle(alignmentAngleDeg: number): number {
+  const halfWidth = 0.3; // (0.8 - 0.2) / 2
+  const cosA = Math.cos((alignmentAngleDeg * Math.PI) / 180);
+  if (1 - cosA < 1e-9) return 0.5; // ~180° → no sag
+  const deltaSquared = (halfWidth * halfWidth * (1 + cosA)) / (1 - cosA);
+  return 0.5 + Math.sqrt(Math.max(0, deltaSquared));
+}
+
+export interface PlankFrameOpts {
+  /** L/R hip Y-delta (triggers ASYMMETRIC_HIPS when > 0.05). */
+  asymmetryY?: number;
+  visibility?: number;
+}
+
+/**
+ * Build a PoseFrame for a plank at a given shoulder-hip-ankle alignment angle.
+ *   alignmentAngleDeg = 180° → perfect straight body
+ *   alignmentAngleDeg < 175° → hip sag (deviation > 5°)
+ *   alignmentAngleDeg < 165° → triggers LOWER_BACK_ROUNDING flag (deviation > 15°)
+ *   alignmentAngleDeg < 160° → below HOLD_ENTER threshold (resting position)
+ */
+export function plankFrame(
+  alignmentAngleDeg: number,
+  opts: PlankFrameOpts = {},
+): PoseFrame {
+  const { asymmetryY = 0, visibility = 0.99 } = opts;
+  const frame = blank(visibility);
+  const hipY = hipYFromAlignmentAngle(alignmentAngleDeg);
+
+  // Shoulder midpoint at (0.2, 0.5)
+  frame[LM_PLANK.LEFT_SHOULDER]  = { x: 0.2, y: 0.45, z: 0, visibility };
+  frame[LM_PLANK.RIGHT_SHOULDER] = { x: 0.2, y: 0.55, z: 0, visibility };
+
+  // Hip midpoint at (0.5, hipY), with optional L/R vertical asymmetry
+  frame[LM_PLANK.LEFT_HIP]  = { x: 0.47, y: hipY - asymmetryY / 2, z: 0, visibility };
+  frame[LM_PLANK.RIGHT_HIP] = { x: 0.53, y: hipY + asymmetryY / 2, z: 0, visibility };
+
+  // Ankle midpoint at (0.8, 0.5)
+  frame[LM_PLANK.LEFT_ANKLE]  = { x: 0.8, y: 0.45, z: 0, visibility };
+  frame[LM_PLANK.RIGHT_ANKLE] = { x: 0.8, y: 0.55, z: 0, visibility };
+
+  return frame;
+}
+
+export interface PlankSeqOpts {
+  asymmetryY?: number;
+  visibility?: number;
+}
+
+/**
+ * Generate a sequence of PoseFrames + timestamps for N plank holds.
+ * Each "rep" = hold at holdAngle for holdDurationMs, then return to restAngle.
+ * Enough rest frames are added between holds to clear RepCounter's 500ms debounce.
+ */
+export function plankRepSequence(
+  reps: number,
+  holdDurationMs: number,
+  fps = 30,
+  holdAngle = 175,
+  restAngle = 120,
+  opts: PlankSeqOpts = {},
+): Array<{ frame: PoseFrame; ms: number }> {
+  const { asymmetryY = 0, visibility } = opts;
+  const frameDurMs = 1000 / fps;
+  const holdFrames = Math.max(2, Math.ceil(holdDurationMs / frameDurMs));
+  // 20 rest frames ≈ 667 ms @ 30 fps — clears the 500 ms debounce window
+  const restFrames = 20;
+
+  const result: Array<{ frame: PoseFrame; ms: number }> = [];
+
+  // 11 warmup frames at rest (below HOLD_ENTER_DEG threshold)
+  for (let i = 0; i < 11; i++) {
+    result.push({ frame: plankFrame(restAngle, { visibility }), ms: i * frameDurMs });
+  }
+
+  let t = 11 * frameDurMs;
+
+  for (let rep = 0; rep < reps; rep++) {
+    // Hold phase
+    for (let i = 0; i < holdFrames; i++) {
+      result.push({ frame: plankFrame(holdAngle, { asymmetryY, visibility }), ms: t });
+      t += frameDurMs;
+    }
+    // Exit frame — triggers rep emit in PlankAnalyzer
+    result.push({ frame: plankFrame(restAngle, { visibility }), ms: t });
+    t += frameDurMs;
+    // Rest frames (inter-rep gap)
+    for (let i = 0; i < restFrames; i++) {
+      result.push({ frame: plankFrame(restAngle, { visibility }), ms: t });
+      t += frameDurMs;
+    }
+  }
+
+  return result;
+}
+
+// ---------------------------------------------------------------------------
 // Test-driving helper
 // ---------------------------------------------------------------------------
 

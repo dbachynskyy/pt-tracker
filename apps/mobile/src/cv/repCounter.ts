@@ -45,6 +45,11 @@ export interface RepEvent {
   auditSnapshot: number[];
 }
 
+export interface LockoutEvent {
+  type: "lockout_started" | "lockout_cleared";
+  sessionMs: number;
+}
+
 export interface RepSession {
   exerciseId: string;
   targetReps: number;
@@ -101,6 +106,7 @@ const ANTI_CHEAT = {
 export class RepCounter {
   private session: RepSession;
   private analyzer: ExerciseAnalyzer;
+  private onLockoutEvent?: (ev: LockoutEvent) => void;
 
   private frameCount = 0;
   private lastRepTimestampMs = 0;
@@ -108,9 +114,15 @@ export class RepCounter {
   private occlusionStreak = 0;
   private lowConfidenceStreak = 0;
   private paused = false;
+  private locked = false;
 
-  constructor(analyzer: ExerciseAnalyzer, targetReps: number) {
+  constructor(
+    analyzer: ExerciseAnalyzer,
+    targetReps: number,
+    options: { onLockoutEvent?: (ev: LockoutEvent) => void } = {},
+  ) {
     this.analyzer = analyzer;
+    this.onLockoutEvent = options.onLockoutEvent;
     this.session = {
       exerciseId: analyzer.exerciseId,
       targetReps,
@@ -138,6 +150,28 @@ export class RepCounter {
       this.paused = true;
     }
     if (this.paused) return null;
+
+    // -- Confidence gate (lockout) --------------------------------------------
+    const avgConf =
+      frame.reduce((sum, lm) => sum + (lm.visibility ?? 0), 0) / frame.length;
+    if (avgConf < ANTI_CHEAT.CONFIDENCE_THRESHOLD) {
+      this.lowConfidenceStreak++;
+      if (!this.locked && this.lowConfidenceStreak > ANTI_CHEAT.MAX_LOW_CONFIDENCE_FRAMES) {
+        this.locked = true;
+        this.onLockoutEvent?.({ type: "lockout_started", sessionMs });
+      }
+      // All low-confidence frames are suppressed — no rep counting
+      return null;
+    } else {
+      if (this.locked) {
+        this.locked = false;
+        this.lowConfidenceStreak = 0;
+        this.onLockoutEvent?.({ type: "lockout_cleared", sessionMs });
+        // fall through — this frame is valid and may produce a rep
+      } else {
+        this.lowConfidenceStreak = 0;
+      }
+    }
 
     // -- Visibility gate ------------------------------------------------------
     const occluded = this.analyzer.requiredLandmarks.some(

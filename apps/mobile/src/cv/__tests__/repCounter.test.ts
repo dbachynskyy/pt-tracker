@@ -2,7 +2,7 @@
  * repCounter.test.ts — RepCounter anti-cheat layer unit tests.
  */
 
-import { RepCounter, type PoseFrame } from "../repCounter";
+import { RepCounter, type PoseFrame, type LockoutEvent } from "../repCounter";
 import { SquatAnalyzer } from "../exercises/squat";
 import { squatRepSequence, driveCounter, squatFrame } from "./fixtures/frameBuilders";
 
@@ -172,6 +172,73 @@ describe("RepCounter — session continuity", () => {
     counter.processFrame(blankFrame(), bigGapT);
     counter.resume();
     expect(counter.processFrame(blankFrame(), bigGapT + 100)).not.toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Lockout guardrails
+// ---------------------------------------------------------------------------
+
+describe("RepCounter — lockout guardrails", () => {
+  // Frames with avg visibility below CONFIDENCE_THRESHOLD (0.6)
+  const lowConfFrame = (): PoseFrame =>
+    Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, z: 0, visibility: 0.3 }));
+
+  it("does not count reps while locked out after >5 consecutive low-confidence frames", () => {
+    const analyzer = new SquatAnalyzer();
+    jest.spyOn(analyzer, "processFrame").mockReturnValue({
+      durationMs: 1200, formScore: 90, flags: [], auditSnapshot: [],
+    });
+    const counter = new RepCounter(analyzer, 10);
+    // Warmup
+    for (let i = 1; i <= 10; i++) counter.processFrame(blankFrame(1.0), i * 33);
+    // 6 low-confidence frames — lockout triggers at frame 6 (streak 6 > 5)
+    for (let i = 0; i < 6; i++) counter.processFrame(lowConfFrame(), (11 + i) * 33);
+    // More low-conf frames that the analyzer would accept — must be blocked
+    for (let i = 0; i < 5; i++) counter.processFrame(lowConfFrame(), (17 + i) * 33);
+    expect(counter.getSession().completedReps).toBe(0);
+  });
+
+  it("emits lockout_started event exactly once when streak exceeds threshold", () => {
+    const analyzer = new SquatAnalyzer();
+    jest.spyOn(analyzer, "processFrame").mockReturnValue(null);
+    const events: LockoutEvent[] = [];
+    const counter = new RepCounter(analyzer, 10, {
+      onLockoutEvent: (ev) => events.push(ev),
+    });
+    for (let i = 1; i <= 10; i++) counter.processFrame(blankFrame(1.0), i * 33);
+    // 5 low-conf frames — not yet at threshold
+    for (let i = 0; i < 5; i++) counter.processFrame(lowConfFrame(), (11 + i) * 33);
+    expect(events).toHaveLength(0);
+    // 6th low-conf frame — crosses threshold
+    counter.processFrame(lowConfFrame(), 16 * 33);
+    expect(events).toHaveLength(1);
+    expect(events[0].type).toBe("lockout_started");
+    // Further low-conf frames must not emit additional lockout_started
+    counter.processFrame(lowConfFrame(), 17 * 33);
+    expect(events).toHaveLength(1);
+  });
+
+  it("emits lockout_cleared and resumes counting on the first high-confidence frame after lockout", () => {
+    const analyzer = new SquatAnalyzer();
+    jest.spyOn(analyzer, "processFrame").mockReturnValue({
+      durationMs: 1200, formScore: 90, flags: [], auditSnapshot: [],
+    });
+    const events: LockoutEvent[] = [];
+    const counter = new RepCounter(analyzer, 10, {
+      onLockoutEvent: (ev) => events.push(ev),
+    });
+    // Warmup
+    for (let i = 1; i <= 10; i++) counter.processFrame(blankFrame(1.0), i * 33);
+    // Enter lockout (6 low-conf frames)
+    for (let i = 0; i < 6; i++) counter.processFrame(lowConfFrame(), (11 + i) * 33);
+    expect(events.map((e) => e.type)).toEqual(["lockout_started"]);
+    // Recovery frame — high confidence clears lockout; debounce gap ensures rep counts
+    const clearT = 17 * 33 + 600;
+    const result = counter.processFrame(blankFrame(1.0), clearT);
+    expect(events.map((e) => e.type)).toEqual(["lockout_started", "lockout_cleared"]);
+    expect(result).not.toBeNull();
+    expect(counter.getSession().completedReps).toBe(1);
   });
 });
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """In-memory data store — no database required for MVP."""
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 
 def _now() -> str:
@@ -71,8 +71,59 @@ def create_session(user_id: str, data: dict) -> dict:
     return session
 
 
-def list_sessions(user_id: str) -> list[dict]:
-    return [s for s in _sessions.values() if s["user_id"] == user_id]
+def list_sessions(
+    user_id: str,
+    *,
+    exercise_type: str | None = None,
+    date: str | None = None,
+    page: int = 1,
+    page_size: int = 20,
+) -> tuple[list[dict], int]:
+    items = [s for s in _sessions.values() if s["user_id"] == user_id]
+
+    if exercise_type:
+        term = exercise_type.lower()
+        items = [
+            s for s in items
+            if any(term in ex["exercise_name"].lower() for ex in s.get("exercises_completed", []))
+        ]
+
+    if date:
+        items = [s for s in items if s["created_at"][:10] == date]
+
+    items.sort(key=lambda s: s["created_at"], reverse=True)
+    total = len(items)
+    start = (page - 1) * page_size
+    return items[start : start + page_size], total
+
+
+def get_adherence_summary(user_id: str) -> dict:
+    all_sessions = [s for s in _sessions.values() if s["user_id"] == user_id]
+    completed = [s for s in all_sessions if s["status"] == "completed"]
+
+    today = datetime.now(timezone.utc).date()
+    cutoff_7d = today - timedelta(days=7)
+    cutoff_30d = today - timedelta(days=30)
+
+    def _date(s: dict):
+        return datetime.fromisoformat(s["created_at"]).date()
+
+    completed_7d = sum(1 for s in completed if _date(s) > cutoff_7d)
+    completed_30d = sum(1 for s in completed if _date(s) > cutoff_30d)
+
+    completed_dates = {_date(s) for s in completed}
+    streak, day = 0, today
+    while day in completed_dates:
+        streak += 1
+        day -= timedelta(days=1)
+
+    return {
+        "streak_days": streak,
+        "completed_7d": completed_7d,
+        "completed_30d": completed_30d,
+        "total_completed": len(completed),
+        "total_sessions": len(all_sessions),
+    }
 
 
 def get_session(session_id: str) -> dict | None:
@@ -85,3 +136,11 @@ def update_session(session_id: str, updates: dict) -> dict | None:
         return None
     s.update(updates)
     return s
+
+
+def _reset() -> None:
+    """Clear all in-memory data (tests only)."""
+    _users.clear()
+    _users_by_email.clear()
+    _plans.clear()
+    _sessions.clear()

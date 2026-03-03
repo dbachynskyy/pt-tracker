@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 
 import app.store as store
@@ -33,6 +33,22 @@ class SessionOut(BaseModel):
     created_at: str
 
 
+class SessionsPage(BaseModel):
+    items: list[SessionOut]
+    total: int
+    page: int
+    page_size: int
+    has_more: bool
+
+
+class AdherenceSummary(BaseModel):
+    streak_days: int
+    completed_7d: int
+    completed_30d: int
+    total_completed: int
+    total_sessions: int
+
+
 @router.post("/", response_model=SessionOut, status_code=status.HTTP_201_CREATED)
 async def create_session(
     body: SessionCreate,
@@ -42,9 +58,36 @@ async def create_session(
     return SessionOut(**s)
 
 
-@router.get("/", response_model=list[SessionOut])
-async def list_sessions(current_user: dict = Depends(get_current_user)) -> list[SessionOut]:
-    return [SessionOut(**s) for s in store.list_sessions(current_user["id"])]
+# NOTE: /summary must be declared before /{session_id} routes to avoid capture.
+@router.get("/summary", response_model=AdherenceSummary)
+async def adherence_summary(
+    current_user: dict = Depends(get_current_user),
+) -> AdherenceSummary:
+    return AdherenceSummary(**store.get_adherence_summary(current_user["id"]))
+
+
+@router.get("/", response_model=SessionsPage)
+async def list_sessions(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    exercise_type: str | None = Query(None),
+    date: str | None = Query(None, description="YYYY-MM-DD"),
+    current_user: dict = Depends(get_current_user),
+) -> SessionsPage:
+    items, total = store.list_sessions(
+        current_user["id"],
+        exercise_type=exercise_type,
+        date=date,
+        page=page,
+        page_size=page_size,
+    )
+    return SessionsPage(
+        items=[SessionOut(**s) for s in items],
+        total=total,
+        page=page,
+        page_size=page_size,
+        has_more=(page * page_size) < total,
+    )
 
 
 @router.patch("/{session_id}/complete", response_model=SessionOut)

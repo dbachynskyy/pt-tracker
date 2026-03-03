@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://api.ptadherence.app/schemas/api/session.exercise_log.request.json",
+  "title": "PATCH /sessions/{sessionId}/exercises/{exerciseId} — Request Body",
+  "description": "Logs completion data for one exercise within an active session. Sent after the patient finishes all sets.",
+  "type": "object",
+  "required": ["setsCompleted", "repsPerSet", "formScore", "durationSeconds"],
+  "additionalProperties": false,
+  "properties": {
+    "setsCompleted": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of sets the patient actually completed (may be less than the plan target)"
+    },
+    "repsPerSet": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "description": "Rep count recorded per set; array length must equal setsCompleted"
+    },
+    "formScore": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Aggregate form quality score 0.0–1.0 produced by the on-device CV model"
+    },
+    "durationSeconds": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total elapsed wall-clock time for this exercise in seconds"
+    }
+  },
+  "examples": [
+    {
+      "setsCompleted": 3,
+      "repsPerSet": [10, 10, 9],
+      "formScore": 0.82,
+      "durationSeconds": 145
+    },
+    {
+      "setsCompleted": 0,
+      "repsPerSet": [],
+      "formScore": 0.0,
+      "durationSeconds": 0
+    }
+  ]
+}

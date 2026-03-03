@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://api.ptadherence.app/schemas/api/auth.register.request.json",
+  "title": "POST /auth/register — Request Body",
+  "description": "Creates a new patient account. Returns JWT access and refresh tokens.",
+  "type": "object",
+  "required": ["email", "password", "name"],
+  "additionalProperties": false,
+  "properties": {
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "Patient email address — used as the login identifier"
+    },
+    "password": {
+      "type": "string",
+      "minLength": 8,
+      "description": "Account password; minimum 8 characters"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Patient display name"
+    }
+  },
+  "examples": [
+    {
+      "email": "patient@example.com",
+      "password": "SecurePass1!",
+      "name": "Alex Reyes"
+    }
+  ]
+}

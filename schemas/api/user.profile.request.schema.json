@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://api.ptadherence.app/schemas/api/user.profile.request.json",
+  "title": "PUT /users/{userId}/profile — Request Body",
+  "description": "Sets or updates the patient injury profile collected during onboarding.",
+  "type": "object",
+  "required": ["injuryType", "constraints"],
+  "additionalProperties": false,
+  "properties": {
+    "injuryType": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Injury classification string, e.g. ACL, rotator_cuff, knee_replacement"
+    },
+    "surgeryDate": {
+      "type": ["string", "null"],
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "ISO 8601 calendar date of surgery (YYYY-MM-DD), or null if not applicable"
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Movement restriction tags applied to exercise selection, e.g. ['no_impact', 'limited_range']"
+    }
+  },
+  "examples": [
+    {
+      "injuryType": "ACL",
+      "surgeryDate": "2025-11-15",
+      "constraints": ["no_impact", "limited_range"]
+    },
+    {
+      "injuryType": "rotator_cuff",
+      "surgeryDate": null,
+      "constraints": []
+    }
+  ]
+}

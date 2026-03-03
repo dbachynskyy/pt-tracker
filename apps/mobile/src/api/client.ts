@@ -86,9 +86,15 @@ export interface AdherenceSummary {
 
 class ApiClient {
   private token: string | null = null;
+  private onUnauthorized: (() => void) | null = null;
 
   setToken(t: string | null) {
     this.token = t;
+  }
+
+  /** Called automatically on any 401 response (e.g. expired/revoked token). */
+  setOnUnauthorized(cb: () => void) {
+    this.onUnauthorized = cb;
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -101,11 +107,16 @@ class ApiClient {
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
 
+    if (res.status === 401) {
+      this.onUnauthorized?.();
+    }
+
     if (!res.ok) {
       const err = (await res.json().catch(() => ({}))) as { detail?: string };
       throw new Error(err.detail ?? `HTTP ${res.status}`);
     }
 
+    if (res.status === 204) return undefined as unknown as T;
     return res.json() as Promise<T>;
   }
 
@@ -119,6 +130,16 @@ class ApiClient {
 
   me() {
     return this.request<User>('GET', '/users/me');
+  }
+
+  refreshToken() {
+    return this.request<AuthTokens>('POST', '/auth/refresh');
+  }
+
+  /** Revoke the current token server-side, then clear local state. */
+  async logout() {
+    await this.request<void>('POST', '/auth/logout').catch(() => {/* fire-and-forget */});
+    this.setToken(null);
   }
 
   listPlans() {

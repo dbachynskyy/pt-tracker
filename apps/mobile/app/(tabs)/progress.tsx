@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { api, Session, SessionStatus } from '../../src/api/client';
+import { SessionListSkeleton } from '../../src/components/Skeleton';
 
 const STATUS_COLOR: Record<SessionStatus, string> = {
   completed: '#059669',
@@ -48,8 +49,8 @@ export default function ProgressScreen() {
     }
   }, []);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (showSkeleton = true) => {
+    if (showSkeleton) setLoading(true);
     setError(null);
     await fetchPage(1, filterRef.current, true);
     setLoading(false);
@@ -62,18 +63,14 @@ export default function ProgressScreen() {
   const applyFilter = () => {
     filterRef.current = filterInput;
     setActiveFilter(filterInput);
-    setError(null);
-    setLoading(true);
-    fetchPage(1, filterInput, true).finally(() => setLoading(false));
+    load();
   };
 
   const clearFilter = () => {
     setFilterInput('');
     filterRef.current = '';
     setActiveFilter('');
-    setError(null);
-    setLoading(true);
-    fetchPage(1, '', true).finally(() => setLoading(false));
+    load();
   };
 
   const loadMore = async () => {
@@ -119,16 +116,14 @@ export default function ProgressScreen() {
       {error && (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity onPress={load}>
-            <Text style={styles.retryText}>Retry</Text>
+          <TouchableOpacity onPress={() => load()} disabled={loading}>
+            <Text style={styles.retryText}>{loading ? 'Loading…' : 'Retry'}</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator />
-        </View>
+        <SessionListSkeleton />
       ) : sessions.length === 0 ? (
         <Text style={styles.empty}>
           {activeFilter ? 'No sessions match that filter.' : 'No sessions yet — start one!'}

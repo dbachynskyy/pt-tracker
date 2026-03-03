@@ -1,11 +1,11 @@
-import React, { createContext, useCallback, useContext, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { api, User } from '../api/client';
 
 interface AuthState {
   token: string | null;
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -13,6 +13,17 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
+
+  const clearAuth = useCallback(() => {
+    api.setToken(null);
+    setToken(null);
+    setUser(null);
+  }, []);
+
+  // Register 401 handler so any expired/revoked token triggers an automatic logout.
+  useEffect(() => {
+    api.setOnUnauthorized(clearAuth);
+  }, [clearAuth]);
 
   const login = useCallback(async (email: string, password: string) => {
     const tokens = await api.login(email, password);
@@ -22,11 +33,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(me);
   }, []);
 
-  const logout = useCallback(() => {
-    api.setToken(null);
-    setToken(null);
-    setUser(null);
-  }, []);
+  const logout = useCallback(async () => {
+    await api.logout();
+    clearAuth();
+  }, [clearAuth]);
 
   return (
     <AuthContext.Provider value={{ token, user, login, logout }}>

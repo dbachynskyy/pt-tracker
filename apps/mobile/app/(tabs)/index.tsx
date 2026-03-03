@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   StyleSheet,
   Text,
@@ -10,6 +9,7 @@ import {
 import { useRouter } from 'expo-router';
 import { api, AdherenceSummary, Plan } from '../../src/api/client';
 import { useAuth } from '../../src/hooks/useAuth';
+import { DashboardSkeleton } from '../../src/components/Skeleton';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -17,6 +17,7 @@ export default function HomeScreen() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [summary, setSummary] = useState<AdherenceSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [retrying, setRetrying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -32,8 +33,15 @@ export default function HomeScreen() {
       setError(e instanceof Error ? e.message : 'Failed to load');
     } finally {
       setLoading(false);
+      setRetrying(false);
     }
   }, []);
+
+  const retry = useCallback(() => {
+    setRetrying(true);
+    setLoading(true);
+    load();
+  }, [load]);
 
   useEffect(() => {
     load();
@@ -51,14 +59,14 @@ export default function HomeScreen() {
       {error && (
         <View style={styles.errorBanner}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity onPress={load}>
-            <Text style={styles.retryText}>Retry</Text>
+          <TouchableOpacity onPress={retry} disabled={retrying}>
+            <Text style={styles.retryText}>{retrying ? 'Loading…' : 'Retry'}</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 32 }} />
+        <DashboardSkeleton />
       ) : (
         <>
           {summary && (

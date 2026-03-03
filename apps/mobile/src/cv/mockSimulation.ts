@@ -10,14 +10,18 @@
  *   sim.stop();    // clears the timer
  */
 
-import { RepCounter, type RepEvent, type PoseFrame } from "./repCounter";
+import { RepCounter, type RepEvent, type PoseFrame, type Landmark } from "./repCounter";
 
 // ---------------------------------------------------------------------------
 // Internal frame helpers (duplicates frameBuilders geometry without test deps)
 // ---------------------------------------------------------------------------
 
+function withSource(frame: Landmark[], source: "real" | "mock" | "disconnected" = "mock"): PoseFrame {
+  return Object.assign(frame, { source }) as PoseFrame;
+}
+
 function blank(visibility = 0.99): PoseFrame {
-  return Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, z: 0, visibility }));
+  return withSource(Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, z: 0, visibility })), "mock");
 }
 
 function proximal(

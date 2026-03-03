@@ -11,7 +11,11 @@
  *     A.x = B.x ± segLen * sin(θ)  (sign: +1 right side, -1 left side)
  */
 
-import type { Landmark, PoseFrame } from "../../repCounter";
+import type { Landmark, PoseFrame, FrameSource } from "../../repCounter";
+
+function withSource(frame: Landmark[], source: FrameSource = "real"): PoseFrame {
+  return Object.assign(frame, { source }) as PoseFrame;
+}
 
 // ---------------------------------------------------------------------------
 // MediaPipe landmark indices
@@ -34,10 +38,10 @@ const LM_PUSH = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function blank(visibility = 0.99): PoseFrame {
-  return Array.from({ length: 33 }, (): Landmark => ({
+function blank(visibility = 0.99, source: FrameSource = "real"): PoseFrame {
+  return withSource(Array.from({ length: 33 }, (): Landmark => ({
     x: 0.5, y: 0.5, z: 0, visibility,
-  }));
+  })), source);
 }
 
 /**

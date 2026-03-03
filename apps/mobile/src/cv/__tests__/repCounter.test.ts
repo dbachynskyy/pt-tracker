@@ -2,12 +2,16 @@
  * repCounter.test.ts — RepCounter anti-cheat layer unit tests.
  */
 
-import { RepCounter, type PoseFrame, type LockoutEvent } from "../repCounter";
+import { RepCounter, type PoseFrame, type LockoutEvent, type Landmark } from "../repCounter";
 import { SquatAnalyzer } from "../exercises/squat";
 import { squatRepSequence, driveCounter, squatFrame } from "./fixtures/frameBuilders";
 
-function blankFrame(visibility = 1.0): PoseFrame {
-  return Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, z: 0, visibility }));
+function withSource(frame: Landmark[], source: "real" | "mock" | "disconnected" = "real"): PoseFrame {
+  return Object.assign(frame, { source }) as PoseFrame;
+}
+
+function blankFrame(visibility = 1.0, source: "real" | "mock" | "disconnected" = "real"): PoseFrame {
+  return withSource(Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, z: 0, visibility })), source);
 }
 
 // ---------------------------------------------------------------------------
@@ -182,7 +186,7 @@ describe("RepCounter — session continuity", () => {
 describe("RepCounter — lockout guardrails", () => {
   // Frames with avg visibility below CONFIDENCE_THRESHOLD (0.6)
   const lowConfFrame = (): PoseFrame =>
-    Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, z: 0, visibility: 0.3 }));
+    withSource(Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, z: 0, visibility: 0.3 })), "real");
 
   it("does not count reps while locked out after >5 consecutive low-confidence frames", () => {
     const analyzer = new SquatAnalyzer();
@@ -239,6 +243,30 @@ describe("RepCounter — lockout guardrails", () => {
     expect(events.map((e) => e.type)).toEqual(["lockout_started", "lockout_cleared"]);
     expect(result).not.toBeNull();
     expect(counter.getSession().completedReps).toBe(1);
+  });
+});
+
+
+
+describe("RepCounter — source gating", () => {
+  it("does not count reps from mock source frames", () => {
+    const analyzer = new SquatAnalyzer();
+    jest.spyOn(analyzer, "processFrame").mockReturnValue({
+      durationMs: 1200, formScore: 90, flags: [], auditSnapshot: [],
+    });
+    const counter = new RepCounter(analyzer, 10);
+    for (let i = 1; i <= 11; i++) counter.processFrame(blankFrame(1.0, "mock"), i * 33);
+    expect(counter.getSession().completedReps).toBe(0);
+  });
+
+  it("does not count reps from disconnected source frames", () => {
+    const analyzer = new SquatAnalyzer();
+    jest.spyOn(analyzer, "processFrame").mockReturnValue({
+      durationMs: 1200, formScore: 90, flags: [], auditSnapshot: [],
+    });
+    const counter = new RepCounter(analyzer, 10);
+    for (let i = 1; i <= 11; i++) counter.processFrame(blankFrame(1.0, "disconnected"), i * 33);
+    expect(counter.getSession().completedReps).toBe(0);
   });
 });
 

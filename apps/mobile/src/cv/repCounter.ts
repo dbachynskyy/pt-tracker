@@ -18,8 +18,13 @@ export interface Landmark {
   visibility?: number; // model confidence [0, 1]
 }
 
-/** 33-element array — indices follow MediaPipe Pose convention. */
-export type PoseFrame = Landmark[];
+export type FrameSource = "real" | "mock" | "disconnected";
+
+/**
+ * 33-element array — indices follow MediaPipe Pose convention.
+ * Detector output must annotate frame provenance via `source`.
+ */
+export type PoseFrame = Landmark[] & { source: FrameSource };
 
 export type ExercisePhase = "IDLE" | "UP" | "DOWN" | "TRANSITION";
 
@@ -150,6 +155,9 @@ export class RepCounter {
       this.paused = true;
     }
     if (this.paused) return null;
+
+    // -- Input-source gate -----------------------------------------------------
+    if (frame.source !== "real") return null;
 
     // -- Confidence gate (lockout) --------------------------------------------
     const avgConf =

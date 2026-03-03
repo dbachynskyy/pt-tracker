@@ -98,6 +98,7 @@ jobs:
         run: |
           shellcheck scripts/smoke-test.sh
           shellcheck scripts/qa-checklist.sh
+          shellcheck scripts/check-real-cv-default.sh
 
   # ─────────────────────────────────────────────
   # 6. CV detector quality gate
@@ -132,6 +133,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+
+      - name: Enforce REAL_CV_REQUIRED gate
+        run: bash scripts/check-real-cv-default.sh pt-helios
 
       - name: Install Helios CV dependencies
         working-directory: pt-helios/apps/mobile

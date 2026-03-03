@@ -4,14 +4,17 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app.store as store
+import app.auth as auth_module
 from app.main import app
 
 
 @pytest.fixture(autouse=True)
 def reset_store():
     store._reset()
+    auth_module.reset_revoked_tokens()
     yield
     store._reset()
+    auth_module.reset_revoked_tokens()
 
 
 @pytest.fixture

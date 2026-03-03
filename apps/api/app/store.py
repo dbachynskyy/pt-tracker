@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-"""In-memory data store — no database required for MVP."""
+"""Data store — in-memory by default; set STORE_BACKEND=json for file persistence."""
+import json
+import os
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -19,6 +21,41 @@ _plans: dict[str, dict] = {}
 _sessions: dict[str, dict] = {}
 
 
+# ── JSON persistence helpers ────────────────────────────────────────────────
+
+def _persist() -> None:
+    from app.config import settings  # local import to avoid circular at import time
+    if settings.STORE_BACKEND != "json":
+        return
+    data = {
+        "users": _users,
+        "users_by_email": _users_by_email,
+        "plans": _plans,
+        "sessions": _sessions,
+    }
+    tmp = settings.STORE_FILE + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f, indent=2)
+    os.replace(tmp, settings.STORE_FILE)
+
+
+def _load_from_file() -> None:
+    from app.config import settings
+    if settings.STORE_BACKEND != "json":
+        return
+    if not os.path.exists(settings.STORE_FILE):
+        return
+    with open(settings.STORE_FILE) as f:
+        data = json.load(f)
+    _users.update(data.get("users", {}))
+    _users_by_email.update(data.get("users_by_email", {}))
+    _plans.update(data.get("plans", {}))
+    _sessions.update(data.get("sessions", {}))
+
+
+_load_from_file()
+
+
 # ── Users ──────────────────────────────────────────────────────────────────
 
 def create_user(email: str, hashed_password: str, full_name: str | None) -> dict:
@@ -33,6 +70,7 @@ def create_user(email: str, hashed_password: str, full_name: str | None) -> dict
     }
     _users[uid] = user
     _users_by_email[email] = uid
+    _persist()
     return user
 
 
@@ -51,6 +89,7 @@ def create_plan(user_id: str, data: dict) -> dict:
     pid = _uuid()
     plan = {"id": pid, "user_id": user_id, "created_at": _now(), **data}
     _plans[pid] = plan
+    _persist()
     return plan
 
 
@@ -68,6 +107,7 @@ def create_session(user_id: str, data: dict) -> dict:
     sid = _uuid()
     session = {"id": sid, "user_id": user_id, "status": "in_progress", "created_at": _now(), **data}
     _sessions[sid] = session
+    _persist()
     return session
 
 
@@ -135,12 +175,16 @@ def update_session(session_id: str, updates: dict) -> dict | None:
     if s is None:
         return None
     s.update(updates)
+    _persist()
     return s
 
 
 def _reset() -> None:
-    """Clear all in-memory data (tests only)."""
+    """Clear all data (tests only). Also removes JSON file if present."""
     _users.clear()
     _users_by_email.clear()
     _plans.clear()
     _sessions.clear()
+    from app.config import settings
+    if settings.STORE_BACKEND == "json" and os.path.exists(settings.STORE_FILE):
+        os.remove(settings.STORE_FILE)

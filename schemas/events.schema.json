@@ -1,0 +1,408 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://api.ptadherence.app/schemas/event.json",
+  "title": "PT Adherence Analytics Event",
+  "description": "Envelope + payload schema for all analytics/audit events emitted by the PT Adherence platform. Use scripts/validate-event.js for runtime validation.",
+  "type": "object",
+  "required": ["event", "timestamp", "platform", "appVersion", "properties"],
+  "additionalProperties": false,
+  "properties": {
+    "event": {
+      "type": "string",
+      "description": "snake_case event name",
+      "enum": [
+        "user_registered",
+        "user_logged_in",
+        "user_logged_out",
+        "token_refreshed",
+        "onboarding_started",
+        "onboarding_completed",
+        "onboarding_dropped",
+        "camera_permission_granted",
+        "camera_permission_denied",
+        "plan_viewed",
+        "exercise_detail_viewed",
+        "session_started",
+        "exercise_started",
+        "set_completed",
+        "exercise_completed",
+        "exercise_skipped",
+        "session_completed",
+        "session_abandoned",
+        "form_feedback_shown",
+        "form_feedback_dismissed",
+        "dashboard_viewed",
+        "weekly_summary_viewed",
+        "weekly_summary_exported",
+        "api_error",
+        "form_detection_failed"
+      ]
+    },
+    "userId": {
+      "description": "null for pre-authentication events",
+      "oneOf": [
+        { "type": "string", "format": "uuid" },
+        { "type": "null" }
+      ]
+    },
+    "sessionId": {
+      "description": "App session identifier (not a rehab session UUID)",
+      "oneOf": [
+        { "type": "string", "format": "uuid" },
+        { "type": "null" }
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC datetime"
+    },
+    "platform": {
+      "type": "string",
+      "enum": ["ios", "android", "web"]
+    },
+    "appVersion": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Semver app version string, e.g. \"1.0.0\""
+    },
+    "properties": {
+      "type": "object",
+      "description": "Event-specific payload; validated per-event below"
+    }
+  },
+
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "formScore": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "0.0–1.0 form quality score from on-device CV model"
+    },
+    "completionRate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "props_empty": {
+      "type": "object",
+      "maxProperties": 0
+    },
+    "props_user_registered": {
+      "type": "object",
+      "required": ["method"],
+      "properties": {
+        "method": { "type": "string", "enum": ["email"] }
+      },
+      "additionalProperties": false
+    },
+    "props_user_logged_in": {
+      "type": "object",
+      "required": ["method"],
+      "properties": {
+        "method": { "type": "string", "enum": ["email"] }
+      },
+      "additionalProperties": false
+    },
+    "props_onboarding_completed": {
+      "type": "object",
+      "required": ["injuryType", "hasSurgeryDate", "constraintCount"],
+      "properties": {
+        "injuryType":      { "type": "string", "minLength": 1 },
+        "hasSurgeryDate":  { "type": "boolean" },
+        "constraintCount": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "props_onboarding_dropped": {
+      "type": "object",
+      "required": ["step"],
+      "properties": {
+        "step": {
+          "type": "string",
+          "enum": ["injury_info", "camera_permission", "plan_review"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "props_plan_viewed": {
+      "type": "object",
+      "required": ["planId", "exerciseCount"],
+      "properties": {
+        "planId":        { "$ref": "#/$defs/uuid" },
+        "exerciseCount": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "props_exercise_detail_viewed": {
+      "type": "object",
+      "required": ["exerciseId", "exerciseName"],
+      "properties": {
+        "exerciseId":   { "$ref": "#/$defs/uuid" },
+        "exerciseName": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "props_session_started": {
+      "type": "object",
+      "required": ["rehabSessionId", "scheduledExerciseCount"],
+      "properties": {
+        "rehabSessionId":          { "$ref": "#/$defs/uuid" },
+        "scheduledExerciseCount":  { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "props_exercise_started": {
+      "type": "object",
+      "required": ["rehabSessionId", "exerciseId", "exerciseName", "targetSets", "targetReps"],
+      "properties": {
+        "rehabSessionId": { "$ref": "#/$defs/uuid" },
+        "exerciseId":     { "$ref": "#/$defs/uuid" },
+        "exerciseName":   { "type": "string", "minLength": 1 },
+        "targetSets":     { "type": "integer", "minimum": 1 },
+        "targetReps":     { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "props_set_completed": {
+      "type": "object",
+      "required": ["rehabSessionId", "exerciseId", "setNumber", "repsCompleted", "formScore"],
+      "properties": {
+        "rehabSessionId": { "$ref": "#/$defs/uuid" },
+        "exerciseId":     { "$ref": "#/$defs/uuid" },
+        "setNumber":      { "type": "integer", "minimum": 1 },
+        "repsCompleted":  { "type": "integer", "minimum": 0 },
+        "formScore":      { "$ref": "#/$defs/formScore" }
+      },
+      "additionalProperties": false
+    },
+    "props_exercise_completed": {
+      "type": "object",
+      "required": ["rehabSessionId", "exerciseId", "setsCompleted", "totalReps", "avgFormScore", "durationSeconds"],
+      "properties": {
+        "rehabSessionId":  { "$ref": "#/$defs/uuid" },
+        "exerciseId":      { "$ref": "#/$defs/uuid" },
+        "setsCompleted":   { "type": "integer", "minimum": 0 },
+        "totalReps":       { "type": "integer", "minimum": 0 },
+        "avgFormScore":    { "$ref": "#/$defs/formScore" },
+        "durationSeconds": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "props_exercise_skipped": {
+      "type": "object",
+      "required": ["rehabSessionId", "exerciseId", "reason"],
+      "properties": {
+        "rehabSessionId": { "$ref": "#/$defs/uuid" },
+        "exerciseId":     { "$ref": "#/$defs/uuid" },
+        "reason": {
+          "type": "string",
+          "enum": ["pain", "tired", "other", "not_specified"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "props_session_completed": {
+      "type": "object",
+      "required": ["rehabSessionId", "exercisesCompleted", "exercisesScheduled", "completionRate", "durationSeconds", "newStreak"],
+      "properties": {
+        "rehabSessionId":      { "$ref": "#/$defs/uuid" },
+        "exercisesCompleted":  { "type": "integer", "minimum": 0 },
+        "exercisesScheduled":  { "type": "integer", "minimum": 1 },
+        "completionRate":      { "$ref": "#/$defs/completionRate" },
+        "durationSeconds":     { "type": "integer", "minimum": 0 },
+        "newStreak":           { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "props_session_abandoned": {
+      "type": "object",
+      "required": ["rehabSessionId", "exercisesCompleted", "exercisesScheduled", "durationSeconds"],
+      "properties": {
+        "rehabSessionId":     { "$ref": "#/$defs/uuid" },
+        "exercisesCompleted": { "type": "integer", "minimum": 0 },
+        "exercisesScheduled": { "type": "integer", "minimum": 1 },
+        "durationSeconds":    { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "props_form_feedback_shown": {
+      "type": "object",
+      "required": ["exerciseId", "feedbackType", "formScore"],
+      "properties": {
+        "exerciseId":   { "$ref": "#/$defs/uuid" },
+        "feedbackType": {
+          "type": "string",
+          "enum": ["posture_deviation", "rep_count_mismatch", "good_form"]
+        },
+        "formScore": { "$ref": "#/$defs/formScore" }
+      },
+      "additionalProperties": false
+    },
+    "props_form_feedback_dismissed": {
+      "type": "object",
+      "required": ["exerciseId", "feedbackType"],
+      "properties": {
+        "exerciseId":   { "$ref": "#/$defs/uuid" },
+        "feedbackType": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "props_dashboard_viewed": {
+      "type": "object",
+      "required": ["currentStreak", "weeklyCompletionRate"],
+      "properties": {
+        "currentStreak":        { "type": "integer", "minimum": 0 },
+        "weeklyCompletionRate": { "$ref": "#/$defs/completionRate" }
+      },
+      "additionalProperties": false
+    },
+    "props_weekly_summary_viewed": {
+      "type": "object",
+      "required": ["weekOf", "completionRate"],
+      "properties": {
+        "weekOf":         { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "completionRate": { "$ref": "#/$defs/completionRate" }
+      },
+      "additionalProperties": false
+    },
+    "props_weekly_summary_exported": {
+      "type": "object",
+      "required": ["weekOf", "method"],
+      "properties": {
+        "weekOf":  { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "method":  { "type": "string", "enum": ["email", "download"] }
+      },
+      "additionalProperties": false
+    },
+    "props_api_error": {
+      "type": "object",
+      "required": ["endpoint", "statusCode", "errorCode"],
+      "properties": {
+        "endpoint":   { "type": "string", "minLength": 1 },
+        "statusCode": { "type": "integer", "minimum": 100, "maximum": 599 },
+        "errorCode":  { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "props_form_detection_failed": {
+      "type": "object",
+      "required": ["exerciseId", "reason"],
+      "properties": {
+        "exerciseId": { "$ref": "#/$defs/uuid" },
+        "reason": {
+          "type": "string",
+          "enum": ["low_light", "occlusion", "model_error"]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+
+  "allOf": [
+    {
+      "if": { "properties": { "event": { "const": "user_registered" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_user_registered" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "user_logged_in" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_user_logged_in" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "user_logged_out" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_empty" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "token_refreshed" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_empty" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "onboarding_started" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_empty" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "onboarding_completed" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_onboarding_completed" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "onboarding_dropped" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_onboarding_dropped" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "camera_permission_granted" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_empty" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "camera_permission_denied" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_empty" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "plan_viewed" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_plan_viewed" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "exercise_detail_viewed" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_exercise_detail_viewed" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "session_started" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_session_started" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "exercise_started" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_exercise_started" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "set_completed" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_set_completed" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "exercise_completed" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_exercise_completed" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "exercise_skipped" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_exercise_skipped" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "session_completed" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_session_completed" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "session_abandoned" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_session_abandoned" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "form_feedback_shown" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_form_feedback_shown" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "form_feedback_dismissed" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_form_feedback_dismissed" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "dashboard_viewed" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_dashboard_viewed" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "weekly_summary_viewed" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_weekly_summary_viewed" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "weekly_summary_exported" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_weekly_summary_exported" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "api_error" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_api_error" } } }
+    },
+    {
+      "if": { "properties": { "event": { "const": "form_detection_failed" } }, "required": ["event"] },
+      "then": { "properties": { "properties": { "$ref": "#/$defs/props_form_detection_failed" } } }
+    }
+  ]
+}

@@ -1,0 +1,824 @@
+openapi: 3.0.3
+info:
+  title: PT Adherence API
+  version: 1.0.0
+  description: |
+    REST API for the PT Adherence MVP — home rehab tracking with form-aware
+    exercise logging, adaptive coaching, and weekly clinician summaries.
+
+    All routes under `/v1` require a Bearer JWT unless marked `security: []`.
+    Obtain tokens via `/auth/register` or `/auth/login`; refresh via `/auth/refresh`.
+
+servers:
+  - url: https://api.ptadherence.app/v1
+    description: Production
+  - url: https://staging.ptadherence.app/v1
+    description: Staging
+  - url: http://localhost:3000/v1
+    description: Local development
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Meta
+    description: Health and operational endpoints
+  - name: Auth
+    description: Registration, login, and token management
+  - name: Onboarding
+    description: Injury profile setup
+  - name: Plan
+    description: Rehab plan retrieval
+  - name: Sessions
+    description: Exercise session lifecycle
+  - name: Dashboard
+    description: Adherence metrics and streaks
+  - name: Summary
+    description: Weekly summary generation and delivery
+
+# ---------------------------------------------------------------------------
+# Components
+# ---------------------------------------------------------------------------
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid Bearer token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: AUTH_INVALID
+              message: Token expired or invalid
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Resource does not exist
+    ValidationError:
+      description: Request body failed validation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: "email: must be a valid email address"
+
+  schemas:
+    # ------------------------------------------------------------------
+    # Shared primitives
+    # ------------------------------------------------------------------
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - AUTH_INVALID
+                - NOT_FOUND
+                - VALIDATION_ERROR
+                - PLAN_NOT_ASSIGNED
+                - SESSION_ALREADY_COMPLETE
+                - RATE_LIMITED
+            message:
+              type: string
+
+    User:
+      type: object
+      required: [id, email, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+
+    AuthTokens:
+      type: object
+      required: [token, refreshToken]
+      properties:
+        token:
+          type: string
+          description: Short-lived JWT access token
+        refreshToken:
+          type: string
+          description: Long-lived refresh token
+
+    # ------------------------------------------------------------------
+    # Onboarding
+    # ------------------------------------------------------------------
+    UserProfile:
+      type: object
+      required: [userId, injuryType, constraints]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        injuryType:
+          type: string
+          example: ACL
+        surgeryDate:
+          type: string
+          format: date
+          nullable: true
+        constraints:
+          type: array
+          items:
+            type: string
+          example: [no_impact, limited_range]
+
+    # ------------------------------------------------------------------
+    # Rehab Plan
+    # ------------------------------------------------------------------
+    Exercise:
+      type: object
+      required: [id, name, sets, reps, restSeconds, videoUrl, instructions]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        sets:
+          type: integer
+          minimum: 1
+        reps:
+          type: integer
+          minimum: 1
+        restSeconds:
+          type: integer
+          minimum: 0
+        videoUrl:
+          type: string
+          format: uri
+          description: Instructional video clip URL
+        instructions:
+          type: string
+
+    Plan:
+      type: object
+      required: [id, name, createdAt, exercises]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        exercises:
+          type: array
+          items:
+            $ref: '#/components/schemas/Exercise'
+
+    TodayExercise:
+      type: object
+      required: [exerciseId, name, sets, reps, completedSets, status]
+      properties:
+        exerciseId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        sets:
+          type: integer
+        reps:
+          type: integer
+        completedSets:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum: [pending, in_progress, complete]
+
+    # ------------------------------------------------------------------
+    # Sessions
+    # ------------------------------------------------------------------
+    Streak:
+      type: object
+      required: [current, longest]
+      properties:
+        current:
+          type: integer
+          minimum: 0
+        longest:
+          type: integer
+          minimum: 0
+
+    # ------------------------------------------------------------------
+    # Dashboard
+    # ------------------------------------------------------------------
+    DailySummary:
+      type: object
+      required: [date, completionRate]
+      properties:
+        date:
+          type: string
+          format: date
+        completionRate:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        sessionId:
+          type: string
+          format: uuid
+          nullable: true
+
+    # ------------------------------------------------------------------
+    # Weekly Summary
+    # ------------------------------------------------------------------
+    WeeklySummary:
+      type: object
+      required:
+        - weekOf
+        - completionRate
+        - exercisesCompleted
+        - exercisesScheduled
+        - avgFormScore
+        - missedDays
+      properties:
+        weekOf:
+          type: string
+          format: date
+          description: Monday date (YYYY-MM-DD)
+        completionRate:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        exercisesCompleted:
+          type: integer
+          minimum: 0
+        exercisesScheduled:
+          type: integer
+          minimum: 0
+        avgFormScore:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        missedDays:
+          type: array
+          items:
+            type: object
+            required: [date]
+            properties:
+              date:
+                type: string
+                format: date
+        pdfUrl:
+          type: string
+          description: Pre-signed S3 URL, expires in 24 hours
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+paths:
+  # ---------- Meta ----------------------------------------------------------
+  /health:
+    get:
+      summary: API health check
+      operationId: healthCheck
+      security: []
+      tags: [Meta]
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, version]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  version:
+                    type: string
+              example:
+                status: ok
+                version: 1.0.0
+
+  # ---------- Auth ----------------------------------------------------------
+  /auth/register:
+    post:
+      summary: Register a new user account
+      operationId: authRegister
+      security: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, name]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                name:
+                  type: string
+            example:
+              email: patient@example.com
+              password: SecurePass1!
+              name: Alex Reyes
+      responses:
+        '201':
+          description: User created, tokens issued
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/AuthTokens'
+                  - type: object
+                    required: [user]
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      summary: Sign in with email and password
+      operationId: authLogin
+      security: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/AuthTokens'
+                  - type: object
+                    required: [user]
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/refresh:
+    post:
+      summary: Refresh access and refresh tokens
+      operationId: authRefresh
+      security: []
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Tokens refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ---------- Onboarding ----------------------------------------------------
+  /users/{userId}/profile:
+    put:
+      summary: Set injury profile (onboarding)
+      operationId: setUserProfile
+      tags: [Onboarding]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [injuryType, constraints]
+              properties:
+                injuryType:
+                  type: string
+                  example: ACL
+                surgeryDate:
+                  type: string
+                  format: date
+                  nullable: true
+                  example: '2025-11-15'
+                constraints:
+                  type: array
+                  items:
+                    type: string
+                  example: [no_impact, limited_range]
+      responses:
+        '200':
+          description: Profile saved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [profile]
+                properties:
+                  profile:
+                    $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------- Plan ----------------------------------------------------------
+  /users/{userId}/plan:
+    get:
+      summary: Fetch the full assigned rehab plan
+      operationId: getUserPlan
+      tags: [Plan]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Full plan with all exercises
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [plan]
+                properties:
+                  plan:
+                    $ref: '#/components/schemas/Plan'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Plan not assigned to this user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: PLAN_NOT_ASSIGNED
+                  message: User has no active plan
+
+  /users/{userId}/plan/today:
+    get:
+      summary: Get today's scheduled exercises with completion status
+      operationId: getUserPlanToday
+      tags: [Plan]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Today's schedule
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [date, exercises]
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  exercises:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TodayExercise'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------- Sessions ------------------------------------------------------
+  /sessions:
+    post:
+      summary: Start a new rehab session
+      operationId: createSession
+      tags: [Sessions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, date]
+              properties:
+                userId:
+                  type: string
+                  format: uuid
+                date:
+                  type: string
+                  format: date
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sessionId, startedAt]
+                properties:
+                  sessionId:
+                    type: string
+                    format: uuid
+                  startedAt:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /sessions/{sessionId}/exercises/{exerciseId}:
+    patch:
+      summary: Log completion of an exercise within a session
+      operationId: logExercise
+      tags: [Sessions]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: exerciseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [setsCompleted, repsPerSet, formScore, durationSeconds]
+              properties:
+                setsCompleted:
+                  type: integer
+                  minimum: 0
+                repsPerSet:
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 0
+                  description: Rep count per set; length must equal setsCompleted
+                formScore:
+                  type: number
+                  format: float
+                  minimum: 0
+                  maximum: 1
+                  description: 0.0–1.0 form quality score from on-device CV model
+                durationSeconds:
+                  type: integer
+                  minimum: 0
+      responses:
+        '200':
+          description: Exercise logged
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [logged, streak]
+                properties:
+                  logged:
+                    type: boolean
+                  streak:
+                    $ref: '#/components/schemas/Streak'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /sessions/{sessionId}/complete:
+    post:
+      summary: Mark a session as complete
+      operationId: completeSession
+      tags: [Sessions]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Session closed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [completionRate, sessionId, completedAt]
+                properties:
+                  completionRate:
+                    type: number
+                    format: float
+                    minimum: 0
+                    maximum: 1
+                  sessionId:
+                    type: string
+                    format: uuid
+                  completedAt:
+                    type: string
+                    format: date-time
+        '400':
+          description: Session already marked complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: SESSION_ALREADY_COMPLETE
+                  message: Session already closed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------- Dashboard -----------------------------------------------------
+  /users/{userId}/adherence:
+    get:
+      summary: Get weekly completion rates and streaks
+      operationId: getUserAdherence
+      tags: [Dashboard]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Start of date range (YYYY-MM-DD)
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+          description: End of date range (YYYY-MM-DD)
+      responses:
+        '200':
+          description: Adherence metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - weeklyCompletionRate
+                  - currentStreak
+                  - longestStreak
+                  - dailySummary
+                properties:
+                  weeklyCompletionRate:
+                    type: number
+                    format: float
+                    minimum: 0
+                    maximum: 1
+                  currentStreak:
+                    type: integer
+                    minimum: 0
+                  longestStreak:
+                    type: integer
+                    minimum: 0
+                  dailySummary:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DailySummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ---------- Summary -------------------------------------------------------
+  /users/{userId}/summary/{weekOf}:
+    get:
+      summary: Get weekly summary report
+      operationId: getWeeklySummary
+      tags: [Summary]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: weekOf
+          in: path
+          required: true
+          description: Monday date in YYYY-MM-DD format
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Weekly summary with PDF link
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WeeklySummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users/{userId}/summary/{weekOf}/send:
+    post:
+      summary: Trigger email delivery of weekly summary to patient and clinician
+      operationId: sendWeeklySummary
+      tags: [Summary]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: weekOf
+          in: path
+          required: true
+          description: Monday date in YYYY-MM-DD format
+          schema:
+            type: string
+            format: date
+      responses:
+        '202':
+          description: Email delivery queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [queued]
+                properties:
+                  queued:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'

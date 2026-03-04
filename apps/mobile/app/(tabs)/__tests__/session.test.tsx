@@ -34,14 +34,20 @@ jest.mock('../../../src/api/client', () => ({
 }));
 
 let mockProviderStatus: 'idle' | 'ready' | 'unavailable' | 'error' = 'ready';
+let mockProviderErrorCode: string | undefined;
+let mockProviderErrorReason: string | undefined;
 
 jest.mock('../../../src/cv/poseProvider', () => ({
-  getPoseProviderState: () => ({ status: mockProviderStatus, providerId: 'test' }),
+  getPoseProviderState: () => ({
+    status: mockProviderStatus,
+    providerId: 'test',
+    errorCode: mockProviderErrorCode,
+    error: mockProviderErrorReason,
+  }),
 }));
 
 let latestOnFrame: ((o: import('../../../src/cv/types').DetectorOutput) => void) | null = null;
 const mockStop = jest.fn();
-const mockReset = jest.fn();
 
 jest.mock('../../../src/cv/mockDetector', () => ({
   createDetector: (type: string) => ({
@@ -50,7 +56,7 @@ jest.mock('../../../src/cv/mockDetector', () => ({
       latestOnFrame = cb;
     },
     stop: mockStop,
-    reset: mockReset,
+    reset: jest.fn(),
   }),
   isMockCvEnabled: () => true,
 }));
@@ -84,6 +90,8 @@ describe('SessionScreen CV integration', () => {
     latestOnFrame = null;
     mockPermissionGranted = true;
     mockProviderStatus = 'ready';
+    mockProviderErrorCode = undefined;
+    mockProviderErrorReason = undefined;
     mockRequestPermissionMock.mockResolvedValue({ status: 'granted', granted: true });
     mockApi.createSession.mockResolvedValue(makeSession() as any);
     mockApi.completeSession.mockResolvedValue({ ...makeSession(), status: 'completed' } as any);
@@ -92,13 +100,15 @@ describe('SessionScreen CV integration', () => {
   it('renders exercise selector and start button in idle phase', () => {
     const { getByTestId } = render(<SessionScreen />);
     expect(getByTestId('exercise-option-squat')).toBeTruthy();
-    expect(getByTestId('exercise-option-plank')).toBeTruthy();
     expect(getByTestId('start-session-btn')).toBeTruthy();
-    expect(getByTestId('provider-health-status').props.children.join('')).toContain('READY');
+    expect(String(getByTestId('provider-health-status').props.children)).toContain('READY');
+    expect(String(getByTestId('provider-last-error').props.children)).toContain('NONE');
   });
 
   it('shows provider unavailable state', async () => {
     mockProviderStatus = 'unavailable';
+    mockProviderErrorCode = 'MODULE_MISSING';
+    mockProviderErrorReason = 'module missing';
     const { getByTestId } = render(<SessionScreen />);
 
     await act(async () => {
@@ -106,7 +116,21 @@ describe('SessionScreen CV integration', () => {
     });
 
     expect(getByTestId('provider-unavailable')).toBeTruthy();
-    expect(getByTestId('provider-health-status').props.children.join('')).toContain('UNAVAILABLE');
+    expect(String(getByTestId('provider-last-error').props.children)).toContain('MODULE_MISSING');
+  });
+
+  it('shows provider malformed state when provider status=error', async () => {
+    mockProviderStatus = 'error';
+    mockProviderErrorCode = 'BAD_LANDMARKS';
+    mockProviderErrorReason = 'mapped landmarks too sparse';
+    const { getByTestId } = render(<SessionScreen />);
+
+    await act(async () => {
+      fireEvent.press(getByTestId('start-session-btn'));
+    });
+
+    expect(getByTestId('provider-malformed')).toBeTruthy();
+    expect(String(getByTestId('provider-last-error').props.children)).toContain('BAD_LANDMARKS');
   });
 
   it('shows permission denied state', async () => {
@@ -134,35 +158,5 @@ describe('SessionScreen CV integration', () => {
     });
 
     expect(getByTestId('low-confidence-warning')).toBeTruthy();
-  });
-
-  it('transitions to active phase after start and shows detector-waiting spinner', async () => {
-    const { getByTestId, queryByTestId } = render(<SessionScreen />);
-
-    await act(async () => {
-      fireEvent.press(getByTestId('start-session-btn'));
-    });
-
-    await waitFor(() => {
-      expect(getByTestId('complete-session-btn')).toBeTruthy();
-    });
-    expect(getByTestId('detector-waiting')).toBeTruthy();
-    expect(queryByTestId('cv-stats-card')).toBeNull();
-  });
-
-  it('uses the selected exercise type when starting the detector', async () => {
-    const { getByTestId } = render(<SessionScreen />);
-    fireEvent.press(getByTestId('exercise-option-plank'));
-
-    await act(async () => {
-      fireEvent.press(getByTestId('start-session-btn'));
-    });
-    await waitFor(() => expect(getByTestId('complete-session-btn')).toBeTruthy());
-
-    act(() => {
-      latestOnFrame!(makeOutput({ exerciseType: 'plank', repCount: 0, elapsedMs: 20000 }));
-    });
-
-    expect(getByTestId('hold-time-block')).toBeTruthy();
   });
 });

@@ -9,28 +9,30 @@ HELIOS_READINESS_FILE="${HELIOS_READINESS_FILE:-$ROOT_DIR/schemas/cv/native-read
 ATLAS_DIR="${ATLAS_DIR:-/tmp/pt-atlas}"
 HELIOS_DIR="${HELIOS_DIR:-/tmp/pt-helios}"
 
-ROLLOUT_STATUS_FILE="${ROLLOUT_STATUS_FILE:-$ROOT_DIR/artifacts/realcv-rollout-status.json}"
-MASTER_READINESS_FILE="${MASTER_READINESS_FILE:-$ROOT_DIR/artifacts/realcv-master-readiness.json}"
-UNIFIED_STATUS_FILE="${UNIFIED_STATUS_FILE:-$ROOT_DIR/artifacts/realcv-lanes-status.v1.json}"
-
-if [[ "${SKIP_REALCV_ROLLOUT_GATE:-0}" != "1" ]]; then
-  ATLAS_DIR="$ATLAS_DIR" HELIOS_DIR="$HELIOS_DIR" \
-  ATLAS_READINESS_FILE="$ATLAS_READINESS_FILE" HELIOS_READINESS_FILE="$HELIOS_READINESS_FILE" \
-  ATLAS_MASTER_READINESS_FILE="$ATLAS_READINESS_FILE" HELIOS_MASTER_READINESS_FILE="$HELIOS_READINESS_FILE" \
-  bash "$SCRIPT_DIR/run-realcv-rollout-gate.sh" || true
-fi
+ATLAS_DIR="$ATLAS_DIR" HELIOS_DIR="$HELIOS_DIR" \
+ATLAS_READINESS_FILE="$ATLAS_READINESS_FILE" HELIOS_READINESS_FILE="$HELIOS_READINESS_FILE" \
+ATLAS_MASTER_READINESS_FILE="$ATLAS_READINESS_FILE" HELIOS_MASTER_READINESS_FILE="$HELIOS_READINESS_FILE" \
+bash "$SCRIPT_DIR/run-realcv-rollout-gate.sh" || true
 
 node "$SCRIPT_DIR/write-realcv-crosslane-status.js" \
   "$ATLAS_READINESS_FILE" \
   "$HELIOS_READINESS_FILE" \
-  "$ROLLOUT_STATUS_FILE" \
-  "$MASTER_READINESS_FILE" \
-  "$UNIFIED_STATUS_FILE" || true
+  "$ROOT_DIR/artifacts/realcv-rollout-status.json" \
+  "$ROOT_DIR/artifacts/realcv-master-readiness.json" \
+  "$ROOT_DIR/artifacts/realcv-lanes-status.v1.json" || true
+
+cp "$ROOT_DIR/artifacts/realcv-lanes-status.v1.json" "$ROOT_DIR/artifacts/realcv-crosslane-status.json"
 
 node -e '
   const fs=require("fs");
-  const s=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
+  const c=fs.readFileSync(process.argv[1]);
+  const a=fs.readFileSync(process.argv[2]);
+  if (!c.equals(a)) {
+    console.error("ERROR: canonical and alias lane artifacts differ");
+    process.exit(1);
+  }
+  const s=JSON.parse(c.toString("utf8"));
   const blocked=Object.entries(s.lane_status||{}).filter(([,v])=>v==="BLOCKED");
-  console.log(`REALCV_CROSSLANE lanes=${JSON.stringify(s.lane_status)} blockers=${(s.blockers||[]).length} artifact=${process.argv[1]}`);
+  console.log(`REALCV_CROSSLANE lanes=${JSON.stringify(s.lane_status)} blockers=${(s.blockers||[]).length}`);
   process.exit(blocked.length?1:0);
-' "$UNIFIED_STATUS_FILE"
+' "$ROOT_DIR/artifacts/realcv-lanes-status.v1.json" "$ROOT_DIR/artifacts/realcv-crosslane-status.json"

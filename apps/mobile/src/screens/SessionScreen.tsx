@@ -6,6 +6,7 @@ import { MockSimulation } from '../cv/mockSimulation';
 import { StabilizedRepCounter } from '../cv/calibrationStabilization';
 import { EXERCISE_IDS, EXERCISE_LABELS, type ExerciseId, createAnalyzer } from '../cv/exerciseRegistry';
 import { SessionTelemetryTracker } from '../cv/sessionTelemetry';
+import { ReadinessArtifactPipeline } from '../cv/sessionArtifactPipeline';
 
 export function SessionScreen() {
   const [exerciseId, setExerciseId] = useState<ExerciseId>('squat');
@@ -21,6 +22,7 @@ export function SessionScreen() {
   const counterRef = useRef<StabilizedRepCounter | null>(null);
   const simRef = useRef<MockSimulation | null>(null);
   const telemetryRef = useRef(new SessionTelemetryTracker());
+  const artifactPipelineRef = useRef(new ReadinessArtifactPipeline());
 
   const handleRep = useCallback((event: RepEvent) => {
     setRepCount(event.repIndex);
@@ -35,7 +37,7 @@ export function SessionScreen() {
     setCalStatus(st.status);
     setCalFrames(st.framesSeen);
     setCalRange(st.range);
-    telemetryRef.current.onFrame(exerciseId, st.status, st.reason, sessionMs, frame.source === 'disconnected');
+    telemetryRef.current.onFrame(exerciseId, st.status, sessionMs, frame.source === 'disconnected', st.reason);
   }, [exerciseId]);
 
   useEffect(() => {
@@ -78,6 +80,12 @@ export function SessionScreen() {
   const endSession = () => {
     simRef.current?.stop();
     setSession(counterRef.current?.endSession() ?? null);
+    const sessionId = `session-${exerciseId}-${Date.now()}`;
+    artifactPipelineRef.current.endSession({
+      sessionId,
+      tracker: telemetryRef.current,
+      outputPath: process?.env?.ORION_READINESS_ARTIFACT_PATH,
+    });
     setMockMode(false);
   };
 

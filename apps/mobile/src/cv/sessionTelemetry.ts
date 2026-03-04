@@ -5,6 +5,7 @@ export interface ExerciseTelemetry {
   startedAtMs: number;
   readyAtMs?: number;
   calibrationStatus: string;
+  readinessReason?: string;
   completedReps: number;
   disconnectedFrames: number;
 }
@@ -22,10 +23,11 @@ export class SessionTelemetryTracker {
     });
   }
 
-  onFrame(exerciseId: ExerciseId, status: string, sessionMs: number, disconnected: boolean): void {
+  onFrame(exerciseId: ExerciseId, status: string, readinessReason: string | undefined, sessionMs: number, disconnected: boolean): void {
     const t = this.byExercise.get(exerciseId);
     if (!t) return;
     t.calibrationStatus = status;
+    t.readinessReason = readinessReason;
     if (!t.readyAtMs && status === 'READY') t.readyAtMs = sessionMs;
     if (disconnected) t.disconnectedFrames += 1;
   }

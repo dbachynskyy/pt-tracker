@@ -35,7 +35,7 @@ export function SessionScreen() {
     setCalStatus(st.status);
     setCalFrames(st.framesSeen);
     setCalRange(st.range);
-    telemetryRef.current.onFrame(exerciseId, st.status, sessionMs, frame.source === 'disconnected');
+    telemetryRef.current.onFrame(exerciseId, st.status, st.reason, sessionMs, frame.source === 'disconnected');
   }, [exerciseId]);
 
   useEffect(() => {
@@ -106,6 +106,7 @@ export function SessionScreen() {
         <Text style={styles.calText}>Frames: {calFrames}</Text>
         <Text style={styles.calText}>Range: {calRange.toFixed(2)}</Text>
         <Text style={styles.calText}>Disconnected frames: {t?.disconnectedFrames ?? 0}</Text>
+        <Text style={styles.calText}>Readiness reason: {t?.readinessReason ?? 'n/a'}</Text>
       </View>
 
       {lastEvent && (
@@ -131,6 +132,7 @@ export function SessionScreen() {
           <Text style={styles.summaryLine}>Cal status: {t?.calibrationStatus ?? 'n/a'}</Text>
           <Text style={styles.summaryLine}>Ready at: {t?.readyAtMs ?? 'n/a'}</Text>
           <Text style={styles.summaryLine}>Disconnected frames: {t?.disconnectedFrames ?? 0}</Text>
+          <Text style={styles.summaryLine}>Readiness reason: {t?.readinessReason ?? 'n/a'}</Text>
         </View>
       )}
     </View>

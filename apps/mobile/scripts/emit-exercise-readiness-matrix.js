@@ -2,6 +2,7 @@
 /* Emit deterministic exercise-level readiness matrix for Atlas+Orion merge */
 const fs = require('fs');
 const path = require('path');
+const { parseEvidenceInput } = require('./lib-blocker-evidence');
 
 const OUT_IDS = ['squat','pushup','sit_to_stand','plank','lunge','glute_bridge','knee_extension','heel_raise','calf_raise','shoulder_abduction'];
 const SRC_IDS = ['squat','pushup','sit_to_stand','plank_hold','lunge','glute_bridge','knee_extension','heel_raise','calf_raise','shoulder_abduction'];
@@ -51,8 +52,10 @@ function detectBlockers(text) {
 
 const inPath = process.argv[2];
 const outPath = process.argv[3] || path.resolve('artifacts/helios-exercise-readiness.v1.json');
+const evidencePath = process.argv[4];
+const evidenceOutPath = process.argv[5] || path.resolve('artifacts/helios-exercise-readiness-evidence.v1.json');
 if (!inPath) {
-  fail('Usage: node apps/mobile/scripts/emit-exercise-readiness-matrix.js <orion.readiness.v1.json> [out.json]', 64);
+  fail('Usage: node apps/mobile/scripts/emit-exercise-readiness-matrix.js <orion.readiness.v1.json> [out.json] [evidence.json|log.txt] [evidenceOut.json]', 64);
 }
 
 const report = readJson(inPath);
@@ -62,6 +65,27 @@ if (!report.byExercise || typeof report.byExercise !== 'object') fail('missing b
 const keys = Object.keys(report.byExercise);
 const missing = SRC_IDS.filter((id) => !keys.includes(id));
 if (missing.length) fail(`malformed id set: missing ${missing.join(',')}`, 3);
+
+let evidenceHits = [];
+if (evidencePath) {
+  try {
+    const raw = fs.readFileSync(evidencePath, 'utf8');
+    let parsed;
+    try { parsed = JSON.parse(raw); }
+    catch (e) {
+      if (String(evidencePath).toLowerCase().endsWith('.json')) throw e;
+      parsed = raw;
+    }
+    evidenceHits = parseEvidenceInput(parsed, path.basename(evidencePath));
+  } catch (e) {
+    fail(`malformed evidence input: ${e.message}`, 8);
+  }
+}
+const evidenceByBlocker = {};
+for (const h of evidenceHits) {
+  evidenceByBlocker[h.blocker] = evidenceByBlocker[h.blocker] || [];
+  evidenceByBlocker[h.blocker].push(h.evidence);
+}
 
 const exercises = [];
 for (const srcId of SRC_IDS) {
@@ -83,6 +107,11 @@ for (const srcId of SRC_IDS) {
 
   const blockerArr = [...blockers];
   const fallback_options = [...new Set(blockerArr.flatMap((b) => BLOCKER_FALLBACKS[b] || []))];
+  const blocker_catalog = blockerArr.map((b) => ({
+    blocker: b,
+    evidence: (evidenceByBlocker[b] && evidenceByBlocker[b][0]) || { source: 'derived_status', code_token: 'NONE', timestamp: undefined },
+    fallback_options: BLOCKER_FALLBACKS[b] || [],
+  }));
 
   exercises.push({
     exercise: outId,
@@ -90,6 +119,7 @@ for (const srcId of SRC_IDS) {
     blockers: blockerArr,
     fallback_options,
     checks,
+    blocker_catalog,
   });
 }
 
@@ -106,7 +136,21 @@ const matrix = {
   exercises,
 };
 
+const evidenceArtifact = {
+  schemaVersion: 'helios-exercise-readiness-evidence.v1',
+  source_schema: report.schemaVersion,
+  threshold_profile_version: report.threshold_profile_version,
+  evidence_source: evidencePath ? path.resolve(evidencePath) : 'none',
+  exercises: exercises.map((e) => ({
+    exercise: e.exercise,
+    blockers: e.blocker_catalog,
+  })),
+};
+
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
+fs.mkdirSync(path.dirname(evidenceOutPath), { recursive: true });
 fs.writeFileSync(outPath, JSON.stringify(matrix, null, 2) + '\n', 'utf8');
+fs.writeFileSync(evidenceOutPath, JSON.stringify(evidenceArtifact, null, 2) + '\n', 'utf8');
 console.log(`[exercise-readiness] PASS: emitted ${exercises.length} exercise rows`);
 console.log(`[exercise-readiness] artifact: ${path.resolve(outPath)}`);
+console.log(`[exercise-readiness] evidence: ${path.resolve(evidenceOutPath)}`);

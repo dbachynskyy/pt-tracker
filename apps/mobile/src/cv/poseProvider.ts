@@ -3,6 +3,8 @@ import { LandmarkAdapter } from './types';
 import { registerLandmarkAdapter } from './landmarkAdapter';
 
 export type ProviderErrorCode =
+  | 'CAMERA_DENIED'
+  | 'SESSION_INTERRUPTED'
   | 'MODULE_MISSING'
   | 'BAD_PAYLOAD_SHAPE'
   | 'BAD_LANDMARKS'

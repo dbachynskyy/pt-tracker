@@ -21,9 +21,30 @@ interface NativePoseResult {
   landmarks: NativeLandmark[];
 }
 
-interface NativePoseModule {
+interface NativePoseModuleError {
+  code?: string;
+  message?: string;
+}
+
+export interface NativePoseModule {
   isAvailable?: () => Promise<boolean>;
-  estimatePose: (input: { base64: string; width: number; height: number; timestampMs: number }) => Promise<NativePoseResult | null>;
+  estimatePose: (input: {
+    base64: string;
+    width: number;
+    height: number;
+    timestampMs: number;
+  }) => Promise<NativePoseResult | null>;
+}
+
+/**
+ * iOS bridge contract for AtlasPoseModule (native side)
+ * - isAvailable(): Promise<boolean>
+ * - estimatePose(frame): Promise<{confidence:number, landmarks:Array<{index|name,x,y,z?,visibility?}>}>
+ */
+export function getNativePoseModule(moduleOverride?: NativePoseModule | null): NativePoseModule | null {
+  if (moduleOverride !== undefined) return moduleOverride;
+  const mod = NativeModules.AtlasPoseModule as NativePoseModule | undefined;
+  return mod ?? null;
 }
 
 const INDEX_TO_NAME: Partial<Record<number, LandmarkName>> = {
@@ -56,13 +77,7 @@ function mapNativeLandmarks(raw: NativeLandmark[]): PoseLandmarks['landmarks'] {
     const name = byName ?? byIndex;
     if (!name) continue;
     if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) continue;
-    mapped.push({
-      name,
-      x: point.x,
-      y: point.y,
-      z: point.z,
-      visibility: point.visibility,
-    });
+    mapped.push({ name, x: point.x, y: point.y, z: point.z, visibility: point.visibility });
   }
   return mapped;
 }
@@ -74,8 +89,16 @@ function validateFrameTimestamp(timestampMs: number): ProviderErrorCode | null {
   return null;
 }
 
+function mapNativeErrorCode(error: NativePoseModuleError): ProviderErrorCode {
+  const code = String(error.code ?? '').toUpperCase();
+  if (code.includes('CAMERA_DENIED') || code.includes('PERMISSION_DENIED')) return 'CAMERA_DENIED';
+  if (code.includes('SESSION_INTERRUPTED') || code.includes('INTERRUPTED')) return 'SESSION_INTERRUPTED';
+  if (code.includes('MODULE_MISSING')) return 'MODULE_MISSING';
+  return 'BAD_PAYLOAD_SHAPE';
+}
+
 export function createNativePoseProvider(moduleOverride?: NativePoseModule | null): PoseProvider {
-  const nativeModule = moduleOverride ?? (NativeModules.AtlasPoseModule as NativePoseModule | undefined);
+  const nativeModule = getNativePoseModule(moduleOverride);
 
   return {
     id: `atlas-native-${Platform.OS}`,
@@ -99,7 +122,15 @@ export function createNativePoseProvider(moduleOverride?: NativePoseModule | nul
           const timestampErr = validateFrameTimestamp(frame.timestampMs);
           if (timestampErr) return fail(timestampErr, `Bad frame timestamp: ${frame.timestampMs}`);
 
-          const result = await nativeModule.estimatePose(frame);
+          let result: NativePoseResult | null;
+          try {
+            result = await nativeModule.estimatePose(frame);
+          } catch (e: unknown) {
+            const err = (e ?? {}) as NativePoseModuleError;
+            const mapped = mapNativeErrorCode(err);
+            return fail(mapped, err.message ?? `native estimatePose failed (${mapped})`);
+          }
+
           if (!result || !Array.isArray(result.landmarks)) {
             return fail('BAD_PAYLOAD_SHAPE', 'estimatePose returned null or non-array landmarks');
           }
@@ -128,4 +159,8 @@ export function createNativePoseProvider(moduleOverride?: NativePoseModule | nul
   };
 }
 
-export const __testables = { mapNativeLandmarks, validateFrameTimestamp };
+export const __testables = {
+  mapNativeLandmarks,
+  validateFrameTimestamp,
+  mapNativeErrorCode,
+};

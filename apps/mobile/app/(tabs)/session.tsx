@@ -178,6 +178,16 @@ export default function SessionScreen() {
               <Text style={styles.cvUnavailableText}>Pose provider returned malformed payload</Text>
             </View>
           )}
+          {providerState.errorCode === 'CAMERA_DENIED' && (
+            <View style={styles.cvUnavailable} testID="provider-camera-denied">
+              <Text style={styles.cvUnavailableText}>Native camera permission denied by provider</Text>
+            </View>
+          )}
+          {providerState.errorCode === 'SESSION_INTERRUPTED' && (
+            <View style={styles.cvUnavailable} testID="provider-session-interrupted">
+              <Text style={styles.cvUnavailableText}>Native camera session interrupted</Text>
+            </View>
+          )}
           <Text style={styles.subtitle}>Ready to start your PT session?</Text>
           <TouchableOpacity
             style={styles.startBtn}

@@ -308,3 +308,25 @@ Compact summary artifact emitted by script:
 
 - schema: `orion.readiness.gate.v1`
 - fields per row: `exercise`, `gate_pass`, `fail_reasons`, `threshold_profile_version`
+
+## CI Regression Guard Command
+
+Compare current compact gate summary vs baseline:
+
+- `npm --workspace apps/mobile run check:readiness-regression -- <current.gate-summary.json> <baseline.gate-summary.json> <regression-summary.json>`
+
+Direct command:
+
+- `node apps/mobile/scripts/check-readiness-regression.js <current> <baseline> <out>`
+
+Regression fails when any exercise has:
+
+- gate pass flip (`true -> false`),
+- quality score drop,
+- missing exercise in current or baseline.
+
+Expected failure output examples:
+
+- `[readiness-regression] FAIL: missing baseline: ...`
+- `[readiness-regression] FAIL: 1 regression(s) detected`
+- ` - pushup:GATE_PASS_FLIP|SCORE_DROP:90->60`

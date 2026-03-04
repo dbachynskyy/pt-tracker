@@ -223,3 +223,13 @@ Trend history guard artifact:
 - `artifacts/realcv-release-trend-history.md`
 
 Guard fails when any exercise has `consecutive_regressions >= 2` unless `ALLOW_REALCV_REGRESSION_OVERRIDE=ALLOW`.
+
+
+Release audit bundle artifacts:
+- `artifacts/realcv-release-audit-bundle.v1.json`
+- `artifacts/realcv-release-audit-bundle.md`
+
+Decision field: `release_decision` (`GO|HOLD`) with ordered blockers.
+CI token: `REALCV_AUDIT_BUNDLE[v1] decision=<GO|HOLD> blockers=<k>`.
+Wrapper fails on HOLD unless `ALLOW_REALCV_RELEASE_HOLD_OVERRIDE=ALLOW`.
+Missing artifact paths are diagnosed in `diagnostics.path_discovery` + `diagnostics.missing_artifacts`.

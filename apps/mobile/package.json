@@ -9,7 +9,8 @@
     "check:readiness-regression": "node scripts/check-readiness-regression.js",
     "check:readiness-trend": "node scripts/check-readiness-trend.js",
     "check:readiness-stability": "node scripts/check-readiness-stability.js",
-    "emit:exercise-readiness": "node scripts/emit-exercise-readiness-matrix.js"
+    "emit:exercise-readiness": "node scripts/emit-exercise-readiness-matrix.js",
+    "check:realcv-completeness": "node scripts/verify-realcv-evidence-completeness.mjs"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

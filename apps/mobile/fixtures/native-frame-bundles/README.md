@@ -62,3 +62,24 @@ cd apps/mobile
 node scripts/capture-pack-completeness.mjs fixtures/native-frame-bundles/atlas-captures.v1.json
 node scripts/generate-native-readiness.mjs fixtures/native-frame-bundles/atlas-captures.v1.json artifacts/atlas.native-readiness.v1.json
 ```
+
+## Completeness diagnostics artifact
+Run:
+```bash
+cd apps/mobile
+node scripts/capture-pack-completeness.mjs fixtures/native-frame-bundles/atlas-captures.v1.json artifacts/atlas-completeness-report.v1.json
+```
+
+Output: `artifacts/atlas-completeness-report.v1.json`
+
+Per exercise fields:
+- `present`
+- `source_valid`
+- `frame_count`
+- `min_landmarks_ok`
+- `gate_pass`
+- `failure_reasons[]`
+
+Aggregate metrics:
+- `total_exercises`, `passed_exercises`, `blocked_exercises`, `coverage_ratio`
+- `min_required_frames`, `min_required_landmarks`

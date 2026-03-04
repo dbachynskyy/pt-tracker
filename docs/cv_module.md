@@ -363,3 +363,32 @@ Fields:
 - `gated_degrade_incidents` (degraded + gate_pass=true + drop > threshold)
 
 CI semantics unchanged: fail **only** when `gated_degrade_incidents.length > 0`.
+
+## CI Temporal Stability Guard
+
+Compute lane-level temporal stability from readiness history and emit:
+
+- `artifacts/helios-stability-summary.v1.json`
+
+Command:
+
+- `npm --workspace apps/mobile run check:readiness-stability -- <history.json> [artifacts/helios-stability-summary.v1.json]`
+
+Where `history.json` is an ordered array of `orion.readiness.gate.v1` summaries.
+
+Per-exercise metrics:
+
+- `rolling_delta_stddev`
+- `pass_fail_flip_rate`
+- `volatility_score = rolling_delta_stddev + pass_fail_flip_rate * FLIP_WEIGHT`
+- `current_gate_pass`
+- `severe_instability`
+
+CI failure policy (trend semantics unchanged):
+
+- Fail only for severe instability incidents where `current_gate_pass=true` and `volatility_score > HELIOS_STABILITY_VOL_THRESHOLD` (default `15`).
+
+Expected failure output example:
+
+- `[readiness-stability] FAIL: 1 severe instability incident(s)`
+- ` - pushup: volatility=...`

@@ -466,3 +466,22 @@ If explicit evidence is unavailable, fallback deterministic evidence is emitted:
 Example call:
 
 - `npm --workspace apps/mobile run emit:exercise-readiness -- <orion.readiness.v1.json> <artifacts/helios-exercise-readiness.v1.json> <lane.log> <artifacts/helios-exercise-readiness-evidence.v1.json>`
+
+### Fallback action planner artifact
+
+Readiness emitter now also outputs:
+
+- `artifacts/helios-exercise-fallback-plan.v1.json`
+
+Per exercise planner fields:
+
+- `severity` (`hard|soft`)
+- `recommended_action` (`REAUTH|TOP_UP_CREDITS|BACKOFF_RETRY|DATA_RECAPTURE|NONE`)
+- `blockers[]`
+- `fallback_options[]`
+
+A markdown summary is emitted at:
+
+- `artifacts/helios-exercise-readiness-summary.md`
+
+including a **Fallback Summary** section with hard/soft counts and action coverage.

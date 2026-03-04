@@ -324,3 +324,17 @@ New blocker classes:
 - `HELIOS_SEVERE_INSTABILITY`
 
 CI line includes version tag: `REALCV_RELEASE_READINESS[v2] ...`
+
+
+### Per-exercise contract artifact
+
+Release-gate wrapper now emits `artifacts/realcv-10ex-status.v1.json` with 10 fixed exercises and fields:
+- `atlas_attested`
+- `helios_gate_pass`
+- `orion_regression_pass`
+- `overall_pass`
+- `reasons[]`
+
+V2 release readiness consumes this artifact and blocks on missing/malformed contract with `REALCV_10EX_STATUS_MISSING_OR_MALFORMED`.
+
+CI log line for exercise table builder: `REALCV_10EX_STATUS[v1] pass=<n>/10`

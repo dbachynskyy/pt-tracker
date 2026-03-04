@@ -202,3 +202,5 @@ bash scripts/run-realcv-release-gate.sh
 Produces `artifacts/realcv-release-readiness.v1.json` and exits non-zero on blockers.
 
 Release gate v2 emits version-tagged CI line `REALCV_RELEASE_READINESS[v2] ...` and writes `artifacts/realcv-release-readiness.v2.json` (while preserving v1 output).
+
+Release gate also writes per-exercise table: `artifacts/realcv-10ex-status.v1.json` (10 fixed exercises).

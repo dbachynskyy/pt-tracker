@@ -125,3 +125,7 @@ node -e '
   if (b.release_decision==="HOLD" && token!=="ALLOW") process.exit(1);
   process.exit(0);
 ' "$ROOT_DIR/artifacts/realcv-release-audit-bundle.v1.json"
+
+
+# Exercise-level final decision matrix (hard requirement 10/10)
+node "$SCRIPT_DIR/build-realcv-exercise-decision-matrix.js"   --atlas-normalized "$ROOT_DIR/artifacts/atlas-normalized.v1.json"   --atlas-coverage "$ROOT_DIR/artifacts/atlas-coverage-gate.v1.json"   --atlas-pack "$ROOT_DIR/artifacts/atlas-pack-output.v1.json"   --helios-evidence "$ROOT_DIR/artifacts/helios-exercise-readiness-evidence.v1.json"   --helios-fallback "$ROOT_DIR/artifacts/helios-fallback-plan.v1.json"   --matrix-10ex "$ROOT_DIR/artifacts/realcv-10ex-status.v1.json"   --out "$ROOT_DIR/artifacts/realcv-exercise-decision-matrix.v1.json"   --md "$ROOT_DIR/artifacts/realcv-exercise-decision-matrix.md"

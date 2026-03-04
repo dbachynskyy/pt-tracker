@@ -13,6 +13,17 @@ const TAXONOMY = {
   MISSING_SELECTOR_EXPOSURE: 'exercise missing from selector exposure set',
   MISSING_ANALYZER_ROUTING: 'exercise missing from analyzer routing source',
   MISSING_TEST_SIGNAL: 'exercise missing minimum test coverage signal',
+  MISSING_READINESS_ARTIFACT: 'readiness artifact path missing in strict mode',
+  UNPARSEABLE_READINESS_ARTIFACT: 'readiness artifact exists but is not valid JSON',
+  MISSING_READINESS_EXERCISE: 'canonical exercise missing from readiness artifact',
+};
+
+const BLOCKER_FALLBACKS = {
+  MISSING_READINESS_ARTIFACT: 'Fallback: supply ATLAS_READINESS_FILE/HELIOS_READINESS_FILE or use fixtures mode until readiness outputs are wired.',
+  UNPARSEABLE_READINESS_ARTIFACT: 'Fallback: validate readiness JSON schema/format and rerun strict gate.',
+  MISSING_READINESS_EXERCISE: 'Fallback: regenerate readiness outputs ensuring all 10 canonical exercises are included.',
+  MISSING_REPO: 'Fallback: run fixtures mode in CI or provide valid ATLAS_DIR/HELIOS_DIR paths.',
+  MISSING_CONTRACT: 'Fallback: sync Atlas/Helios repo contracts and rerun.',
 };
 
 function readJson(p) { return JSON.parse(fs.readFileSync(p, 'utf8')); }
@@ -22,9 +33,8 @@ function pushBlocker(blockers, code, detail) { blockers.push({ code, detail }); 
 
 function gitSha(repoDir) {
   if (!exists(repoDir) || !exists(path.join(repoDir, '.git'))) return null;
-  try {
-    return execSync('git rev-parse --short HEAD', { cwd: repoDir, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
-  } catch { return null; }
+  try { return execSync('git rev-parse --short HEAD', { cwd: repoDir, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); }
+  catch { return null; }
 }
 
 function findMatchesInFile(filePath, patterns) {
@@ -32,31 +42,39 @@ function findMatchesInFile(filePath, patterns) {
   if (!exists(filePath)) return matches;
   const lines = fs.readFileSync(filePath, 'utf8').split('\n');
   lines.forEach((line, i) => {
-    for (const p of patterns) {
-      if (p && line.includes(p)) matches.push({ file: filePath, line: i + 1, pattern: p, snippet: line.trim().slice(0, 180) });
-    }
+    for (const p of patterns) if (p && line.includes(p)) matches.push({ file: filePath, line: i + 1, pattern: p, snippet: line.trim().slice(0, 180) });
   });
   return matches;
 }
 
-function parseReadinessFile(filePath, sourceName, blockers) {
+function parseReadinessFile(filePath, sourceName, blockers, strictMode = false) {
   const map = {};
-  if (!filePath) return map;
-  if (!exists(filePath)) {
-    pushBlocker(blockers, 'MISSING_CONTRACT', `${sourceName} readiness file missing: ${filePath}`);
+  if (!filePath) {
+    if (strictMode) pushBlocker(blockers, 'MISSING_READINESS_ARTIFACT', `${sourceName} readiness file not provided`);
     return map;
   }
-  const raw = readJson(filePath);
-  const entries = Array.isArray(raw) ? raw : Array.isArray(raw.exercises) ? raw.exercises : Object.entries(raw.readiness || {}).map(([k, v]) => ({ exerciseId: k, ...(typeof v === 'string' ? { reason: v } : v) }));
+  if (!exists(filePath)) {
+    pushBlocker(blockers, strictMode ? 'MISSING_READINESS_ARTIFACT' : 'MISSING_CONTRACT', `${sourceName} readiness file missing: ${filePath}`);
+    return map;
+  }
+  let raw;
+  try {
+    raw = readJson(filePath);
+  } catch (e) {
+    pushBlocker(blockers, strictMode ? 'UNPARSEABLE_READINESS_ARTIFACT' : 'MISSING_CONTRACT', `${sourceName} readiness parse error: ${filePath} (${e.message})`);
+    return map;
+  }
+
+  const entries = Array.isArray(raw)
+    ? raw
+    : Array.isArray(raw.exercises)
+      ? raw.exercises
+      : Object.entries(raw.readiness || {}).map(([k, v]) => ({ exerciseId: k, ...(typeof v === 'string' ? { reason: v } : v) }));
+
   for (const e of entries) {
     const id = norm(e.exerciseId || e.id);
     if (!id) continue;
-    map[id] = {
-      ready: e.ready !== false,
-      reason: e.reason || e.readinessReason || null,
-      source: sourceName,
-      raw: e,
-    };
+    map[id] = { ready: e.ready !== false, reason: e.reason || e.readinessReason || null, source: sourceName, raw: e };
   }
   return map;
 }
@@ -69,8 +87,7 @@ function parseAtlasSelectorExposure(blockers, atlasDir) {
   const impl = fs.readFileSync(todo, 'utf8').split(/\n##\s+|\nInfra:/i)[0];
   impl.split('\n').forEach((line, i) => {
     const m = line.match(/- \[[xX]\]\s+([a-zA-Z0-9_\-]+)/); if (!m) return;
-    const id = norm(m[1]); ids.add(id);
-    evidenceById[id] = evidenceById[id] || [];
+    const id = norm(m[1]); ids.add(id); evidenceById[id] = evidenceById[id] || [];
     evidenceById[id].push({ file: todo, line: i + 1, pattern: m[1], snippet: line.trim().slice(0, 180) });
   });
   return { ids, evidenceById };
@@ -133,10 +150,8 @@ function classifyFailFast(report, summary) {
     ...report.blockers.map((b) => `${b.code} ${b.detail}`),
     ...summary.readiness_matrix.flatMap((r) => [r.atlasReadinessReason || '', r.heliosReadinessReason || '']),
   ].map((x) => x.toLowerCase());
-
   const isNegative = (t) => /(denied|missing|failed|error|blocked|unavailable|invalid|expired|insufficient|quota exceeded|unauthori|forbidden)/.test(t);
   const any = (re) => phrases.some((p) => re.test(p) && isNegative(p));
-
   const categories = [];
   const add = (code, when, fallback) => { if (when) categories.push({ code, fallback }); };
   add('CAMERA_BLOCKER', any(/(camera|permission|capture|lens|device)/), 'Fallback: run fixtures mode; verify camera permissions/device binding on Atlas/Helios hosts.');
@@ -160,9 +175,7 @@ function computeTrend(previousSummary, currentSummary) {
 function evaluate(contract, selectorInfo, routingInfo, coverageInfo, blockers, modeUsed, atlasReadiness, heliosReadiness) {
   const rows = []; const failures = [];
   for (const ex of contract.exercises) {
-    const id = norm(ex.id);
-    const aR = atlasReadiness[id] || null;
-    const hR = heliosReadiness[id] || null;
+    const id = norm(ex.id); const aR = atlasReadiness[id] || null; const hR = heliosReadiness[id] || null;
     const row = {
       exerciseId: id,
       selectorExposure: selectorInfo.ids.has(id),
@@ -201,7 +214,9 @@ function buildSummary(report, opts = {}) {
     else strictGateStatus = passCount >= requiredCount ? 'PASS' : 'FAIL';
   }
 
-  const summary = {
+  const blockersWithFallback = report.blockers.map((b) => ({ ...b, fallback: BLOCKER_FALLBACKS[b.code] || 'Fallback: inspect blocker detail and rerun with fixtures mode if needed.' }));
+
+  return {
     generatedAt: report.generatedAt,
     mode: report.mode,
     strictGateEnabled: strictGate,
@@ -214,7 +229,8 @@ function buildSummary(report, opts = {}) {
     atlas_git_sha: report.provenance.atlasGitSha,
     helios_git_sha: report.provenance.heliosGitSha,
     taxonomy: report.taxonomy,
-    blockers: report.blockers,
+    blockers: blockersWithFallback,
+    fallbackSuggestions: blockersWithFallback.map((b) => ({ code: b.code, fallback: b.fallback })),
     readiness_matrix: report.results.map((r) => ({
       exerciseId: r.exerciseId,
       selectorExposure: r.selectorExposure,
@@ -228,7 +244,6 @@ function buildSummary(report, opts = {}) {
       failureCodes: r.failureCodes,
     })),
   };
-  return summary;
 }
 
 function renderSummaryMd(summary) {
@@ -250,6 +265,10 @@ function renderSummaryMd(summary) {
   ];
   for (const r of summary.readiness_matrix) lines.push(`| ${r.exerciseId} | ${r.selectorExposure ? '✅' : '❌'} | ${r.analyzerRouting ? '✅' : '❌'} | ${r.minimumTestCoverageSignal ? '✅' : '❌'} | ${r.atlasReadiness === null ? '—' : (r.atlasReadiness ? '✅' : '❌')} | ${r.heliosReadiness === null ? '—' : (r.heliosReadiness ? '✅' : '❌')} | ${r.status} |`);
 
+  if (summary.blockers?.length) {
+    lines.push('', '## Blockers + fallbacks', '');
+    for (const b of summary.blockers) lines.push(`- ${b.code}: ${b.detail} | ${b.fallback}`);
+  }
   if (summary.failFast?.triggered) {
     lines.push('', '## Fail-fast classification', '');
     for (const c of summary.failFast.categories) lines.push(`- ${c.code}: ${c.fallback}`);
@@ -265,6 +284,14 @@ function renderSummaryMd(summary) {
 
 function renderMd(report, summary) {
   return renderSummaryMd(summary) + '\n\n## Evidence\n\n' + report.results.map((r) => `### ${r.exerciseId}\n- selector: ${(r.evidence.selectorExposure[0] || {}).file || 'none'}\n- routing: ${(r.evidence.analyzerRouting[0] || {}).file || 'none'}\n- tests: ${(r.evidence.minimumTestCoverageSignal[0] || {}).file || 'none'}\n`).join('\n');
+}
+
+function enforceStrictReadinessRequirements(contract, atlasReadiness, heliosReadiness, blockers) {
+  for (const ex of contract.exercises) {
+    const id = norm(ex.id);
+    if (!atlasReadiness[id]) pushBlocker(blockers, 'MISSING_READINESS_EXERCISE', `Atlas readiness missing canonical exercise: ${id}`);
+    if (!heliosReadiness[id]) pushBlocker(blockers, 'MISSING_READINESS_EXERCISE', `Helios readiness missing canonical exercise: ${id}`);
+  }
 }
 
 function runHarness({ mode, atlasDir, heliosDir, rootDir = ROOT, strictGate = false, outJson, outMd, outSummaryJson, outSummaryMd, atlasReadinessFile, heliosReadinessFile, previousSummaryPath }) {
@@ -293,8 +320,10 @@ function runHarness({ mode, atlasDir, heliosDir, rootDir = ROOT, strictGate = fa
     }
   }
 
-  const atlasReadiness = parseReadinessFile(atlasReadinessFile, 'atlas', blockers);
-  const heliosReadiness = parseReadinessFile(heliosReadinessFile, 'helios', blockers);
+  const strictReadiness = strictGate && modeUsed === 'live';
+  const atlasReadiness = parseReadinessFile(atlasReadinessFile, 'atlas', blockers, strictReadiness);
+  const heliosReadiness = parseReadinessFile(heliosReadinessFile, 'helios', blockers, strictReadiness);
+  if (strictReadiness) enforceStrictReadinessRequirements(contract, atlasReadiness, heliosReadiness, blockers);
 
   const evalResult = evaluate(contract, selectorInfo, routingInfo, coverageInfo, blockers, modeUsed, atlasReadiness, heliosReadiness);
   const report = {
@@ -315,9 +344,7 @@ function runHarness({ mode, atlasDir, heliosDir, rootDir = ROOT, strictGate = fa
   if (strictGate && summary.failFast.triggered && summary.strictGateStatus === 'PASS') summary.strictGateStatus = 'FAIL_FAST';
 
   let prev = null;
-  if (previousSummaryPath && exists(previousSummaryPath)) {
-    try { prev = readJson(previousSummaryPath); } catch {}
-  }
+  if (previousSummaryPath && exists(previousSummaryPath)) { try { prev = readJson(previousSummaryPath); } catch {} }
   summary.trend = computeTrend(prev, summary);
 
   fs.mkdirSync(path.dirname(outJson), { recursive: true });
@@ -352,11 +379,28 @@ function cli() {
   console.log(`Summary JSON: ${outSummaryJson}`);
 
   if (report.status === 'BLOCKED') process.exit(2);
-  if (strictGate && ['FAIL', 'NOT_LIVE', 'FAIL_FAST'].includes(summary.strictGateStatus)) process.exit(1);
+  if (strictGate && ['FAIL', 'NOT_LIVE', 'FAIL_FAST', 'BLOCKED'].includes(summary.strictGateStatus)) process.exit(1);
   if (report.status === 'PASS') process.exit(0);
   process.exit(1);
 }
 
 if (require.main === module) cli();
 
-module.exports = { TAXONOMY, norm, parseReadinessFile, classifyFailFast, computeTrend, findMatchesInFile, parseAtlasSelectorExposure, parseHeliosAnalyzerRouting, parseHeliosCoverageSignal, loadFixture, evaluate, buildSummary, renderSummaryMd, runHarness };
+module.exports = {
+  TAXONOMY,
+  BLOCKER_FALLBACKS,
+  norm,
+  parseReadinessFile,
+  classifyFailFast,
+  computeTrend,
+  findMatchesInFile,
+  parseAtlasSelectorExposure,
+  parseHeliosAnalyzerRouting,
+  parseHeliosCoverageSignal,
+  loadFixture,
+  evaluate,
+  buildSummary,
+  renderSummaryMd,
+  enforceStrictReadinessRequirements,
+  runHarness,
+};

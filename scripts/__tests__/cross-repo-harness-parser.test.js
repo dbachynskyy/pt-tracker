@@ -14,6 +14,7 @@ const {
   parseReadinessFile,
   classifyFailFast,
   computeTrend,
+  enforceStrictReadinessRequirements,
 } = require('../run-cross-repo-cv-regression-harness');
 
 const FIX = path.join(__dirname, 'fixtures', 'cross-repo');
@@ -38,7 +39,7 @@ assert(r.ids.has('plank'));
 
 const tmpReadiness = path.join(__dirname, 'fixtures', 'readiness.tmp.json');
 fs.writeFileSync(tmpReadiness, JSON.stringify({ exercises: [{ exerciseId: 'plank', ready: false, reason: 'camera permission denied' }] }));
-const ar = parseReadinessFile(tmpReadiness, 'atlas', []);
+const ar = parseReadinessFile(tmpReadiness, 'atlas', [], true);
 assert.equal(ar.plank.ready, false);
 assert(ar.plank.reason.includes('camera'));
 
@@ -53,6 +54,14 @@ assert(summary.failFast.triggered, 'camera reason should trigger fail-fast');
 const trend = computeTrend({ pass_count: 1, fail_count: 2, blocked_count: 0, status: 'FAIL', strictGateStatus: 'FAIL' }, summary);
 assert.equal(trend.pass_delta, 2);
 assert.equal(typeof renderSummaryMd(summary), 'string');
+
+const strictBlockers = [];
+enforceStrictReadinessRequirements(contract, { squat: {}, plank: {} }, { squat: {}, pushup: {}, plank: {} }, strictBlockers);
+assert(strictBlockers.some((b) => b.code === 'MISSING_READINESS_EXERCISE' && /pushup/.test(b.detail)));
+
+const parseBlockers = [];
+parseReadinessFile('/tmp/does-not-exist-xyz.json', 'atlas', parseBlockers, true);
+assert(parseBlockers.some((b) => b.code === 'MISSING_READINESS_ARTIFACT'));
 
 fs.unlinkSync(tmpReadiness);
 console.log('PASS cross-repo-harness-parser.test.js');

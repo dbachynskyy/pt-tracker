@@ -5,13 +5,7 @@ import type { RepEvent, RepSession, PoseFrame } from '../cv/repCounter';
 import { MockSimulation } from '../cv/mockSimulation';
 import { StabilizedRepCounter } from '../cv/calibrationStabilization';
 import { EXERCISE_IDS, EXERCISE_LABELS, type ExerciseId, createAnalyzer } from '../cv/exerciseRegistry';
-
-interface SessionTelemetry {
-  calibrationStatus: string;
-  calibrationFrames: number;
-  calibrationRange: number;
-  disconnectedFrames: number;
-}
+import { SessionTelemetryTracker } from '../cv/sessionTelemetry';
 
 export function SessionScreen() {
   const [exerciseId, setExerciseId] = useState<ExerciseId>('squat');
@@ -23,30 +17,26 @@ export function SessionScreen() {
   const [calStatus, setCalStatus] = useState('UNCALIBRATED');
   const [calFrames, setCalFrames] = useState(0);
   const [calRange, setCalRange] = useState(0);
-  const [telemetry, setTelemetry] = useState<SessionTelemetry>({ calibrationStatus: 'UNCALIBRATED', calibrationFrames: 0, calibrationRange: 0, disconnectedFrames: 0 });
 
   const counterRef = useRef<StabilizedRepCounter | null>(null);
   const simRef = useRef<MockSimulation | null>(null);
+  const telemetryRef = useRef(new SessionTelemetryTracker());
 
   const handleRep = useCallback((event: RepEvent) => {
     setRepCount(event.repIndex);
     setLastEvent(event);
-  }, []);
+    telemetryRef.current.onRep(exerciseId, event.repIndex);
+  }, [exerciseId]);
 
-  const handleFrame = useCallback((frame: PoseFrame) => {
+  const handleFrame = useCallback((frame: PoseFrame, sessionMs: number) => {
     const c = counterRef.current;
     if (!c) return;
     const st = c.getCalibrationState();
     setCalStatus(st.status);
     setCalFrames(st.framesSeen);
     setCalRange(st.range);
-    setTelemetry((t) => ({
-      calibrationStatus: st.status,
-      calibrationFrames: st.framesSeen,
-      calibrationRange: st.range,
-      disconnectedFrames: t.disconnectedFrames + (frame.source === 'disconnected' ? 1 : 0),
-    }));
-  }, []);
+    telemetryRef.current.onFrame(exerciseId, st.status, sessionMs, frame.source === 'disconnected');
+  }, [exerciseId]);
 
   useEffect(() => {
     simRef.current?.stop();
@@ -59,10 +49,10 @@ export function SessionScreen() {
     setCalStatus('UNCALIBRATED');
     setCalFrames(0);
     setCalRange(0);
-    setTelemetry({ calibrationStatus: 'UNCALIBRATED', calibrationFrames: 0, calibrationRange: 0, disconnectedFrames: 0 });
 
     if (!mockMode) return;
 
+    telemetryRef.current.startExercise(exerciseId, 0);
     const analyzer = createAnalyzer(exerciseId);
     const counter = new StabilizedRepCounter(analyzer, 10);
     counterRef.current = counter;
@@ -87,17 +77,16 @@ export function SessionScreen() {
 
   const endSession = () => {
     simRef.current?.stop();
-    const s = counterRef.current?.endSession() ?? null;
-    setSession(s);
+    setSession(counterRef.current?.endSession() ?? null);
     setMockMode(false);
   };
 
   const scoreColor = (score: number) => (score >= 80 ? '#16a34a' : score >= 60 ? '#d97706' : '#dc2626');
+  const t = telemetryRef.current.getExercise(exerciseId);
 
   return (
     <View style={styles.root}>
       <Text style={styles.title}>PT Session</Text>
-
       <View style={styles.exerciseRowWrap}>
         {EXERCISE_IDS.map((id) => (
           <TouchableOpacity key={id} style={[styles.exerciseBtn, exerciseId === id && styles.exerciseBtnActive]} onPress={() => setExerciseId(id)}>
@@ -106,10 +95,7 @@ export function SessionScreen() {
         ))}
       </View>
 
-      <View style={styles.toggleRow}>
-        <Text style={styles.toggleLabel}>Mock data</Text>
-        <Switch value={mockMode} onValueChange={setMockMode} />
-      </View>
+      <View style={styles.toggleRow}><Text style={styles.toggleLabel}>Mock data</Text><Switch value={mockMode} onValueChange={setMockMode} /></View>
       {mockMode && <Text style={styles.mockBadge}>SIMULATED STREAM</Text>}
 
       <Text style={styles.repCount}>{repCount}</Text>
@@ -119,6 +105,7 @@ export function SessionScreen() {
         <Text style={styles.calText}>Calibration: {calStatus}</Text>
         <Text style={styles.calText}>Frames: {calFrames}</Text>
         <Text style={styles.calText}>Range: {calRange.toFixed(2)}</Text>
+        <Text style={styles.calText}>Disconnected frames: {t?.disconnectedFrames ?? 0}</Text>
       </View>
 
       {lastEvent && (
@@ -141,10 +128,9 @@ export function SessionScreen() {
           <Text style={styles.summaryTitle}>Session Summary</Text>
           <Text style={styles.summaryLine}>Exercise: {session.exerciseId}</Text>
           <Text style={styles.summaryLine}>Completed: {session.completedReps} / {session.targetReps} reps</Text>
-          <Text style={styles.summaryLine}>Cal status: {telemetry.calibrationStatus}</Text>
-          <Text style={styles.summaryLine}>Cal frames: {telemetry.calibrationFrames}</Text>
-          <Text style={styles.summaryLine}>Disconnected frames: {telemetry.disconnectedFrames}</Text>
-          {session.events.length > 0 && <Text style={styles.summaryLine}>Avg form: {Math.round(session.events.reduce((s, e) => s + e.formScore, 0) / session.events.length)}/100</Text>}
+          <Text style={styles.summaryLine}>Cal status: {t?.calibrationStatus ?? 'n/a'}</Text>
+          <Text style={styles.summaryLine}>Ready at: {t?.readyAtMs ?? 'n/a'}</Text>
+          <Text style={styles.summaryLine}>Disconnected frames: {t?.disconnectedFrames ?? 0}</Text>
         </View>
       )}
     </View>
@@ -166,7 +152,7 @@ const styles = StyleSheet.create({
   repLabel: { fontSize: 14, fontWeight: '600', letterSpacing: 4, color: '#9ca3af', marginBottom: 16 },
   calCard: { backgroundColor: '#eef2ff', borderRadius: 10, padding: 10, marginBottom: 10, minWidth: 220 },
   calText: { fontSize: 12, color: '#374151' },
-  formCard: { backgroundColor: '#fff', borderRadius: 14, padding: 16, minWidth: 240, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 3, marginBottom: 24 },
+  formCard: { backgroundColor: '#fff', borderRadius: 14, padding: 16, minWidth: 240, alignItems: 'center', marginBottom: 24 },
   formScore: { fontSize: 20, fontWeight: '700', marginBottom: 4 },
   flags: { fontSize: 12, color: '#ef4444', marginBottom: 4, textAlign: 'center' },
   duration: { fontSize: 12, color: '#9ca3af' },

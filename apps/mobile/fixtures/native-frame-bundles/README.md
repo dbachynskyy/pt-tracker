@@ -96,3 +96,16 @@ New per-exercise diagnostics in `atlas-completeness-report.v2.json`:
 - `attestation_reasons[]`
 
 Compatibility alias still emitted: `atlas-completeness-report.v1.json`.
+
+
+## Completeness report contract guarantees
+`capture-pack-completeness.mjs` always emits dual outputs:
+- Canonical: `artifacts/atlas-completeness-report.v2.json`
+- Compatibility alias: `artifacts/atlas-completeness-report.v1.json`
+
+Compatibility mapping guarantee:
+- v1 alias payload is byte-for-byte equivalent to v2 except `version` field (`v1` vs `v2`).
+
+Required per-exercise fields (all 10 exercises):
+- `present`, `source_valid`, `source_attested`, `attestation_reasons[]`
+- `frame_count`, `min_landmarks_ok`, `gate_pass`, `failure_reasons[]`

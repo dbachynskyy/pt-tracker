@@ -420,3 +420,27 @@ Example snippet:
   ]
 }
 ```
+
+## Exercise Readiness Gate Matrix (Atlas+Orion merge)
+
+Emit deterministic exercise table:
+
+- `npm --workspace apps/mobile run emit:exercise-readiness -- <orion.readiness.v1.json> [artifacts/helios-exercise-readiness.v1.json]`
+
+Output artifact:
+
+- `artifacts/helios-exercise-readiness.v1.json`
+- fixed IDs: `squat,pushup,sit_to_stand,plank,lunge,glute_bridge,knee_extension,heel_raise,calf_raise,shoulder_abduction`
+
+Per exercise fields:
+
+- `gate_pass` (bool)
+- `blockers[]` where applicable:
+  - `AUTH_BLOCKER`
+  - `CREDITS_BLOCKER`
+  - `RATE_LIMIT_BLOCKER`
+  - `QUALITY_BLOCKER`
+- `fallback_options[]`
+- `checks` map (sample/confidence/rep-signal/status/quality-gate checks)
+
+Malformed input ID set fails fast to prevent partial merge tables.

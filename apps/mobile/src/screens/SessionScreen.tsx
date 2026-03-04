@@ -131,6 +131,7 @@ export function SessionScreen() {
           <Text style={styles.summaryLine}>Completed: {session.completedReps} / {session.targetReps} reps</Text>
           <Text style={styles.summaryLine}>Cal status: {t?.calibrationStatus ?? 'n/a'}</Text>
           <Text style={styles.summaryLine}>Ready at: {t?.readyAtMs ?? 'n/a'}</Text>
+          <Text style={styles.summaryLine}>Readiness reason: {t?.readinessReason ?? 'n/a'}</Text>
           <Text style={styles.summaryLine}>Disconnected frames: {t?.disconnectedFrames ?? 0}</Text>
           <Text style={styles.summaryLine}>Readiness reason: {t?.readinessReason ?? 'n/a'}</Text>
         </View>

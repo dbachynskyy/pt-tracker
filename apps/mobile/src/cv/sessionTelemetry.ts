@@ -23,12 +23,12 @@ export class SessionTelemetryTracker {
     });
   }
 
-  onFrame(exerciseId: ExerciseId, status: string, readinessReason: string | undefined, sessionMs: number, disconnected: boolean): void {
+  onFrame(exerciseId: ExerciseId, status: string, sessionMs: number, disconnected: boolean, readinessReason?: string): void {
     const t = this.byExercise.get(exerciseId);
     if (!t) return;
     t.calibrationStatus = status;
-    t.readinessReason = readinessReason;
     if (!t.readyAtMs && status === 'READY') t.readyAtMs = sessionMs;
+    if (status === 'READY' || status === 'REJECTED') t.readinessReason = readinessReason;
     if (disconnected) t.disconnectedFrames += 1;
   }
 

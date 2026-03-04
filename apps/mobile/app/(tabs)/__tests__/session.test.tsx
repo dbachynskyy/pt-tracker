@@ -133,6 +133,33 @@ describe('SessionScreen CV integration', () => {
     expect(String(getByTestId('provider-last-error').props.children)).toContain('BAD_LANDMARKS');
   });
 
+
+  it('shows provider camera denied state', async () => {
+    mockProviderStatus = 'error';
+    mockProviderErrorCode = 'CAMERA_DENIED';
+    mockProviderErrorReason = 'permission denied';
+    const { getByTestId } = render(<SessionScreen />);
+
+    await act(async () => {
+      fireEvent.press(getByTestId('start-session-btn'));
+    });
+
+    expect(getByTestId('provider-camera-denied')).toBeTruthy();
+  });
+
+  it('shows provider session interrupted state', async () => {
+    mockProviderStatus = 'error';
+    mockProviderErrorCode = 'SESSION_INTERRUPTED';
+    mockProviderErrorReason = 'interrupted';
+    const { getByTestId } = render(<SessionScreen />);
+
+    await act(async () => {
+      fireEvent.press(getByTestId('start-session-btn'));
+    });
+
+    expect(getByTestId('provider-session-interrupted')).toBeTruthy();
+  });
+
   it('shows permission denied state', async () => {
     mockPermissionGranted = false;
     mockRequestPermissionMock.mockResolvedValue({ status: 'denied', granted: false });

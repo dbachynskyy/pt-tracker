@@ -31,10 +31,7 @@ describe('nativePoseProvider contract guard', () => {
   });
 
   it('flags BAD_PAYLOAD_SHAPE', async () => {
-    const provider = createNativePoseProvider({
-      isAvailable: async () => true,
-      estimatePose: async () => null,
-    });
+    const provider = createNativePoseProvider({ isAvailable: async () => true, estimatePose: async () => null });
     await provider.createAdapter().estimate({ base64: 'x', width: 1, height: 1, timestampMs: Date.now() });
     expect(getPoseProviderState().errorCode).toBe('BAD_PAYLOAD_SHAPE');
   });
@@ -48,13 +45,31 @@ describe('nativePoseProvider contract guard', () => {
     expect(getPoseProviderState().errorCode).toBe('BAD_CONFIDENCE');
   });
 
-  it('flags BAD_LANDMARKS', async () => {
+  it('flags BAD_LANDMARKS for empty frames', async () => {
     const provider = createNativePoseProvider({
       isAvailable: async () => true,
-      estimatePose: async () => ({ confidence: 0.7, landmarks: [{ index: 99, x: 0.1, y: 0.2 }] }),
+      estimatePose: async () => ({ confidence: 0.7, landmarks: [] }),
     });
     await provider.createAdapter().estimate({ base64: 'x', width: 1, height: 1, timestampMs: Date.now() });
     expect(getPoseProviderState().errorCode).toBe('BAD_LANDMARKS');
+  });
+
+  it('maps native CAMERA_DENIED error', async () => {
+    const provider = createNativePoseProvider({
+      isAvailable: async () => true,
+      estimatePose: async () => { throw { code: 'CAMERA_DENIED', message: 'permission denied' }; },
+    });
+    await provider.createAdapter().estimate({ base64: 'x', width: 1, height: 1, timestampMs: Date.now() });
+    expect(getPoseProviderState().errorCode).toBe('CAMERA_DENIED');
+  });
+
+  it('maps native SESSION_INTERRUPTED error', async () => {
+    const provider = createNativePoseProvider({
+      isAvailable: async () => true,
+      estimatePose: async () => { throw { code: 'SESSION_INTERRUPTED', message: 'interrupted' }; },
+    });
+    await provider.createAdapter().estimate({ base64: 'x', width: 1, height: 1, timestampMs: Date.now() });
+    expect(getPoseProviderState().errorCode).toBe('SESSION_INTERRUPTED');
   });
 
   it('happy path returns pose', async () => {

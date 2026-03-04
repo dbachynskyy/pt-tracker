@@ -49,3 +49,16 @@ Import + readiness generation fail fast for:
 - invalid native pose result shape
 
 Missing captures are allowed only as explicit placeholders (`frames: []`) and will be marked blocked in readiness artifact.
+
+## Completeness precheck (hard gate)
+Readiness generation now requires all 10 exercises to have:
+- non-placeholder `source`
+- >=3 frames
+- each frame with valid `nativePoseResult` containing >=4 landmarks
+
+Run:
+```bash
+cd apps/mobile
+node scripts/capture-pack-completeness.mjs fixtures/native-frame-bundles/atlas-captures.v1.json
+node scripts/generate-native-readiness.mjs fixtures/native-frame-bundles/atlas-captures.v1.json artifacts/atlas.native-readiness.v1.json
+```

@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "test": "jest",
     "test:watch": "jest --watchAll",
-    "coverage:gate": "node scripts/check-realcv-coverage.mjs artifacts/atlas-provenance-attestation.v1.json artifacts/atlas-coverage-gate.v1.json"
+    "coverage:gate": "node scripts/check-realcv-coverage.mjs artifacts/atlas-provenance-attestation.v1.json artifacts/atlas-coverage-gate.v1.json",
+    "realcv:pack:gate": "node scripts/validate-realcv-capture-pack.mjs fixtures/native-frame-bundles/atlas-captures.v1.json artifacts/atlas-real-capture-pack-gate.v1.json"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

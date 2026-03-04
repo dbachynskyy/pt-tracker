@@ -1,0 +1,115 @@
+{
+  "version": "atlas-real-capture-pack-gate.v1",
+  "generatedAt": "2026-03-04T11:43:44.585Z",
+  "aggregate": {
+    "total_exercises": 10,
+    "passing_exercises": 9,
+    "failing_exercises": 1,
+    "distinct_device_ids": [
+      "iphone15-squat",
+      "iphone15-pushup",
+      "iphone15-sit_to_stand",
+      "iphone15-plank",
+      "iphone15-lunge",
+      "iphone15-glute_bridge",
+      "iphone15-knee_extension",
+      "iphone15-calf_raise",
+      "iphone15-shoulder_abduction"
+    ],
+    "gate_pass": false,
+    "gate_reasons": [
+      "exercise_quality_failures"
+    ],
+    "thresholds": {
+      "MIN_FRAMES": 3,
+      "MIN_REP_OBS": 2,
+      "CONF_FLOOR": 0.5,
+      "CONF_PASS_RATIO": 0.7,
+      "MIN_DEVICE_IDS": 2
+    }
+  },
+  "exercises": [
+    {
+      "exercise": "squat",
+      "pass": true,
+      "reasons": [],
+      "frame_count": 3,
+      "rep_obs": 3,
+      "conf_ratio": 1
+    },
+    {
+      "exercise": "pushup",
+      "pass": true,
+      "reasons": [],
+      "frame_count": 3,
+      "rep_obs": 3,
+      "conf_ratio": 1
+    },
+    {
+      "exercise": "sit_to_stand",
+      "pass": true,
+      "reasons": [],
+      "frame_count": 3,
+      "rep_obs": 3,
+      "conf_ratio": 1
+    },
+    {
+      "exercise": "plank",
+      "pass": true,
+      "reasons": [],
+      "frame_count": 3,
+      "rep_obs": 3,
+      "conf_ratio": 1
+    },
+    {
+      "exercise": "lunge",
+      "pass": true,
+      "reasons": [],
+      "frame_count": 3,
+      "rep_obs": 3,
+      "conf_ratio": 1
+    },
+    {
+      "exercise": "glute_bridge",
+      "pass": true,
+      "reasons": [],
+      "frame_count": 3,
+      "rep_obs": 3,
+      "conf_ratio": 1
+    },
+    {
+      "exercise": "knee_extension",
+      "pass": true,
+      "reasons": [],
+      "frame_count": 3,
+      "rep_obs": 3,
+      "conf_ratio": 1
+    },
+    {
+      "exercise": "heel_raise",
+      "pass": false,
+      "reasons": [
+        "device_id_missing"
+      ],
+      "frame_count": 3,
+      "rep_obs": 3,
+      "conf_ratio": 1
+    },
+    {
+      "exercise": "calf_raise",
+      "pass": true,
+      "reasons": [],
+      "frame_count": 3,
+      "rep_obs": 3,
+      "conf_ratio": 1
+    },
+    {
+      "exercise": "shoulder_abduction",
+      "pass": true,
+      "reasons": [],
+      "frame_count": 3,
+      "rep_obs": 3,
+      "conf_ratio": 1
+    }
+  ]
+}

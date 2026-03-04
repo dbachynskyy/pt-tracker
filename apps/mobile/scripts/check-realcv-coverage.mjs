@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildCaptureValidationReport } from './capture-bundle-validation.mjs';
+import { buildRealCapturePackGate } from './validate-realcv-capture-pack.mjs';
 
 const REQUIRED = [
   'squat','pushup','sit_to_stand','plank','lunge',
@@ -62,6 +63,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const outPath = process.argv[3] ?? path.resolve('artifacts/atlas-coverage-gate.v1.json');
   const bundlePath = process.argv[4] ?? path.resolve('fixtures/native-frame-bundles/atlas-captures.v1.json');
   const capValPath = process.argv[5] ?? path.resolve('artifacts/atlas-capture-validation.v1.json');
+  const realPackPath = process.argv[6] ?? path.resolve('artifacts/atlas-real-capture-pack-gate.v1.json');
 
   const att = JSON.parse(fs.readFileSync(attPath, 'utf8'));
   const bundle = JSON.parse(fs.readFileSync(bundlePath, 'utf8'));
@@ -69,7 +71,24 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   fs.mkdirSync(path.dirname(capValPath), { recursive: true });
   fs.writeFileSync(capValPath, `${JSON.stringify(captureValidation, null, 2)}\n`, 'utf8');
 
+  const realPackGate = buildRealCapturePackGate(bundle);
+  fs.mkdirSync(path.dirname(realPackPath), { recursive: true });
+  fs.writeFileSync(realPackPath, `${JSON.stringify(realPackGate, null, 2)}\n`, 'utf8');
+
   const report = buildCoverageGate(att, captureValidation);
+  if (!realPackGate.aggregate.gate_pass) {
+    report.aggregate.gate_pass = false;
+    report.aggregate.real_capture_pack_gate_pass = false;
+    for (const ex of report.exercises) {
+      const rp = realPackGate.exercises.find((r) => r.exercise === ex.exercise);
+      if (rp && !rp.pass) {
+        ex.gate_pass = false;
+        ex.reasons = [...new Set([...(ex.reasons||[]), 'real_capture_pack_fail', ...(rp.reasons||[])])];
+      }
+    }
+  } else {
+    report.aggregate.real_capture_pack_gate_pass = true;
+  }
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
 
@@ -77,11 +96,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const failed = report.exercises.find((e) => !e.gate_pass);
     console.error(`coverage-gate-failed: ${failed.exercise} -> ${failed.reasons.join(',')}`);
     console.error(`wrote ${capValPath}`);
+    console.error(`wrote ${realPackPath}`);
     console.error(`wrote ${outPath}`);
     process.exit(1);
   }
 
   console.log(`coverage-gate-pass: ${report.aggregate.passed_exercises}/${report.aggregate.required_exercises}`);
   console.log(`wrote ${capValPath}`);
+  console.log(`wrote ${realPackPath}`);
   console.log(`wrote ${outPath}`);
 }

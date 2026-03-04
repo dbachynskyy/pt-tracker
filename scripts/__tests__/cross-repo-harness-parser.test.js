@@ -8,6 +8,8 @@ const {
   parseHeliosAnalyzerRouting,
   parseHeliosCoverageSignal,
   evaluate,
+  buildSummary,
+  renderSummaryMd,
 } = require('../run-cross-repo-cv-regression-harness');
 
 const FIX = path.join(__dirname, 'fixtures', 'cross-repo');
@@ -42,5 +44,26 @@ assert((r.evidenceById.plank || []).length > 0, 'plank routing evidence must be 
 
 const out = evaluate(contract, s, r, c, [], 'live');
 assert.equal(out.status, 'PASS', 'fixture contract should pass all checks');
+
+const report = {
+  generatedAt: '2026-03-04T00:00:00.000Z',
+  mode: 'live',
+  status: 'PASS',
+  requiredExerciseCount: 3,
+  taxonomy: {},
+  blockers: [],
+  provenance: { atlasGitSha: 'atlas123', heliosGitSha: 'helios456' },
+  results: out.rows,
+  summary: { pass: 3, fail: 0 },
+};
+
+const summary = buildSummary(report, { strictGate: true });
+assert.equal(summary.pass_count, 3);
+assert.equal(summary.strictGateStatus, 'PASS');
+assert.equal(summary.atlas_git_sha, 'atlas123');
+
+const summaryMd = renderSummaryMd(summary);
+assert(summaryMd.includes('Cross-Repo CV Regression Summary'));
+assert(summaryMd.includes('Atlas SHA: atlas123'));
 
 console.log('PASS cross-repo-harness-parser.test.js');

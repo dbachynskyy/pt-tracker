@@ -3,6 +3,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 const ROOT = process.cwd();
 
@@ -17,8 +18,16 @@ const TAXONOMY = {
 function readJson(p) { return JSON.parse(fs.readFileSync(p, 'utf8')); }
 function exists(p) { return fs.existsSync(p); }
 function norm(s) { return String(s || '').trim().toLowerCase().replace(/[\s-]+/g, '_'); }
-
 function pushBlocker(blockers, code, detail) { blockers.push({ code, detail }); }
+
+function gitSha(repoDir) {
+  if (!exists(repoDir) || !exists(path.join(repoDir, '.git'))) return null;
+  try {
+    return execSync('git rev-parse --short HEAD', { cwd: repoDir, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+  } catch {
+    return null;
+  }
+}
 
 function findMatchesInFile(filePath, patterns) {
   const matches = [];
@@ -91,8 +100,7 @@ function parseHeliosAnalyzerRouting(blockers, contract, heliosDir) {
     const id = norm(ex.id);
     const acceptedIds = (ex.acceptedRoutingIds || [id]).map(norm);
     const acceptedClasses = (ex.acceptedAnalyzerClasses || [ex.analyzerClass]).filter(Boolean);
-    const idPatterns = acceptedIds.flatMap((x) => [`'${x}'`, `"${x}"`]);
-    const patterns = [...idPatterns, ...acceptedClasses];
+    const patterns = [...acceptedIds.flatMap((x) => [`'${x}'`, `"${x}"`]), ...acceptedClasses];
 
     let exMatches = [];
     for (const file of availableRoutingFiles) {
@@ -193,6 +201,7 @@ function evaluate(contract, selectorInfo, routingInfo, coverageInfo, blockers, m
       row.status = 'FAIL';
       failures.push({ exerciseId: id, failureCodes: row.failureCodes });
     }
+
     rows.push(row);
   }
 
@@ -201,15 +210,58 @@ function evaluate(contract, selectorInfo, routingInfo, coverageInfo, blockers, m
   return { status, rows, failures };
 }
 
-function renderMd(report) {
+function buildSummary(report, opts = {}) {
+  const strictGate = Boolean(opts.strictGate);
+  const passCount = report.summary.pass;
+  const blockedCount = report.blockers.length;
+  const requiredCount = report.requiredExerciseCount;
+
+  let strictGateStatus = 'DISABLED';
+  if (strictGate) {
+    if (report.mode !== 'live') strictGateStatus = 'NOT_LIVE';
+    else if (report.status === 'BLOCKED') strictGateStatus = 'BLOCKED';
+    else strictGateStatus = passCount >= requiredCount ? 'PASS' : 'FAIL';
+  }
+
+  return {
+    generatedAt: report.generatedAt,
+    mode: report.mode,
+    strictGateEnabled: strictGate,
+    strictGateStatus,
+    status: report.status,
+    requiredCount,
+    pass_count: passCount,
+    fail_count: report.summary.fail,
+    blocked_count: blockedCount,
+    atlas_git_sha: report.provenance.atlasGitSha,
+    helios_git_sha: report.provenance.heliosGitSha,
+    taxonomy: report.taxonomy,
+    blockers: report.blockers,
+    readiness_matrix: report.results.map((r) => ({
+      exerciseId: r.exerciseId,
+      selectorExposure: r.selectorExposure,
+      analyzerRouting: r.analyzerRouting,
+      minimumTestCoverageSignal: r.minimumTestCoverageSignal,
+      status: r.status,
+      failureCodes: r.failureCodes,
+    })),
+  };
+}
+
+function renderMd(report, summary) {
   const lines = [
     '# Cross-Repo CV Regression Harness Report',
     '',
+    `- Timestamp: ${report.generatedAt}`,
     `- Mode: ${report.mode}`,
     `- Status: ${report.status}`,
-    `- Required exercises: ${report.requiredExerciseCount}`,
+    `- Strict gate: ${summary.strictGateEnabled ? summary.strictGateStatus : 'DISABLED'}`,
+    `- Atlas SHA: ${report.provenance.atlasGitSha || 'unknown'}`,
+    `- Helios SHA: ${report.provenance.heliosGitSha || 'unknown'}`,
+    `- Pass count: ${summary.pass_count}/${summary.requiredCount}`,
+    `- Blocked count: ${summary.blocked_count}`,
     '',
-    '## Per-exercise checks',
+    '## Per-exercise readiness matrix',
     '',
     '| Exercise | Selector exposure | Analyzer routing | Min test signal | Status | Codes |',
     '|---|---:|---:|---:|---|---|',
@@ -223,11 +275,8 @@ function renderMd(report) {
   for (const r of report.results) {
     lines.push(`### ${r.exerciseId}`);
     for (const [k, ev] of Object.entries(r.evidence)) {
-      if (!ev.length) {
-        lines.push(`- ${k}: none`);
-      } else {
-        lines.push(`- ${k}: ${ev[0].file}:${ev[0].line} (${ev[0].pattern})`);
-      }
+      if (!ev.length) lines.push(`- ${k}: none`);
+      else lines.push(`- ${k}: ${ev[0].file}:${ev[0].line} (${ev[0].pattern})`);
     }
     lines.push('');
   }
@@ -242,13 +291,39 @@ function renderMd(report) {
 
   lines.push('', '## Fallback options', '',
     '- Use `--mode fixtures` in CI when sibling repos are unavailable.',
-    '- Use `--mode auto` to prefer live parsing and fall back to fixtures with an explicit blocker note.',
-    '- Provide `ATLAS_DIR` and `HELIOS_DIR` for strict live gating in release workflows.');
+    '- Use `--mode auto` to prefer live parsing and fall back to fixtures with explicit blocker note.',
+    '- Use `--mode live --strict-gate` for release gating (real-camera 10/10 readiness).');
 
   return lines.join('\n');
 }
 
-function runHarness({ mode, atlasDir, heliosDir, rootDir = ROOT, outJson, outMd }) {
+function renderSummaryMd(summary) {
+  const lines = [
+    '# Cross-Repo CV Regression Summary',
+    '',
+    `- Timestamp: ${summary.generatedAt}`,
+    `- Mode: ${summary.mode}`,
+    `- Status: ${summary.status}`,
+    `- Strict gate enabled: ${summary.strictGateEnabled}`,
+    `- Strict gate status: ${summary.strictGateStatus}`,
+    `- Atlas SHA: ${summary.atlas_git_sha || 'unknown'}`,
+    `- Helios SHA: ${summary.helios_git_sha || 'unknown'}`,
+    `- Pass count: ${summary.pass_count}/${summary.requiredCount}`,
+    `- Fail count: ${summary.fail_count}`,
+    `- Blocked count: ${summary.blocked_count}`,
+    '',
+    '## Readiness matrix',
+    '',
+    '| Exercise | Selector | Routing | Tests | Status |',
+    '|---|---:|---:|---:|---|',
+  ];
+  for (const r of summary.readiness_matrix) {
+    lines.push(`| ${r.exerciseId} | ${r.selectorExposure ? '✅' : '❌'} | ${r.analyzerRouting ? '✅' : '❌'} | ${r.minimumTestCoverageSignal ? '✅' : '❌'} | ${r.status} |`);
+  }
+  return lines.join('\n');
+}
+
+function runHarness({ mode, atlasDir, heliosDir, rootDir = ROOT, strictGate = false, outJson, outMd, outSummaryJson, outSummaryMd }) {
   const contract = readJson(path.join(rootDir, 'schemas', 'cv', 'cross-repo-regression.contract.json'));
   const blockers = [];
   let modeUsed = mode;
@@ -284,7 +359,6 @@ function runHarness({ mode, atlasDir, heliosDir, rootDir = ROOT, outJson, outMd 
   }
 
   const evalResult = evaluate(contract, selectorInfo, routingInfo, coverageInfo, blockers, modeUsed);
-
   const report = {
     generatedAt: new Date().toISOString(),
     mode: modeUsed,
@@ -292,6 +366,12 @@ function runHarness({ mode, atlasDir, heliosDir, rootDir = ROOT, outJson, outMd 
     requiredExerciseCount: contract.requiredExerciseCount,
     taxonomy: TAXONOMY,
     blockers,
+    provenance: {
+      atlasGitSha: gitSha(atlasDir),
+      heliosGitSha: gitSha(heliosDir),
+      atlasDir,
+      heliosDir,
+    },
     results: evalResult.rows,
     failures: evalResult.failures,
     summary: {
@@ -300,40 +380,52 @@ function runHarness({ mode, atlasDir, heliosDir, rootDir = ROOT, outJson, outMd 
     },
   };
 
+  const summary = buildSummary(report, { strictGate });
+
   fs.mkdirSync(path.dirname(outJson), { recursive: true });
   fs.writeFileSync(outJson, JSON.stringify(report, null, 2));
-  fs.writeFileSync(outMd, renderMd(report));
+  fs.writeFileSync(outMd, renderMd(report, summary));
+  fs.writeFileSync(outSummaryJson, JSON.stringify(summary, null, 2));
+  fs.writeFileSync(outSummaryMd, renderSummaryMd(summary));
 
-  return report;
+  return { report, summary };
 }
 
-function main() {
+function cli() {
   const args = process.argv.slice(2);
   const arg = (name, dflt = null) => {
     const i = args.indexOf(name);
     return i >= 0 ? args[i + 1] : dflt;
   };
+  const has = (name) => args.includes(name);
 
   const mode = arg('--mode', 'auto');
   const atlasDir = arg('--atlas-dir', process.env.ATLAS_DIR || '/tmp/pt-atlas');
   const heliosDir = arg('--helios-dir', process.env.HELIOS_DIR || '/tmp/pt-helios');
+  const strictGate = has('--strict-gate');
+
   const outJson = arg('--out', path.join(ROOT, 'artifacts', 'cross-repo-cv-regression.json'));
   const outMd = arg('--out-md', path.join(ROOT, 'artifacts', 'cross-repo-cv-regression.md'));
+  const outSummaryJson = arg('--out-summary', path.join(ROOT, 'artifacts', 'cross-repo-cv-regression-summary.json'));
+  const outSummaryMd = arg('--out-summary-md', path.join(ROOT, 'artifacts', 'cross-repo-cv-regression-summary.md'));
 
-  const report = runHarness({ mode, atlasDir, heliosDir, outJson, outMd });
+  const { report, summary } = runHarness({ mode, atlasDir, heliosDir, strictGate, outJson, outMd, outSummaryJson, outSummaryMd });
 
   console.log(`Cross-repo CV regression harness status: ${report.status}`);
+  console.log(`Strict gate status: ${summary.strictGateStatus}`);
   console.log(`JSON: ${outJson}`);
   console.log(`MD:   ${outMd}`);
+  console.log(`Summary JSON: ${outSummaryJson}`);
+  console.log(`Summary MD:   ${outSummaryMd}`);
 
-  if (report.status === 'PASS') process.exit(0);
   if (report.status === 'BLOCKED') process.exit(2);
+  if (strictGate && summary.strictGateStatus === 'FAIL') process.exit(1);
+  if (strictGate && summary.strictGateStatus === 'NOT_LIVE') process.exit(1);
+  if (report.status === 'PASS') process.exit(0);
   process.exit(1);
 }
 
-if (require.main === module) {
-  main();
-}
+if (require.main === module) cli();
 
 module.exports = {
   TAXONOMY,
@@ -344,5 +436,7 @@ module.exports = {
   parseHeliosCoverageSignal,
   loadFixture,
   evaluate,
+  buildSummary,
+  renderSummaryMd,
   runHarness,
 };

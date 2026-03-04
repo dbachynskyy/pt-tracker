@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Trend-aware readiness scorer: emits helios-readiness-trend.v1 and fails only on hidden degradation */
+/* Trend-aware readiness scorer: emits per-exercise + lane summary artifacts */
 const fs = require('fs');
 const path = require('path');
 
@@ -24,12 +24,22 @@ function toMap(summary) {
   for (const row of summary.exercises || []) m.set(row.exercise, row);
   return m;
 }
+function scoreOf(row) {
+  return typeof row.quality_score === 'number' ? row.quality_score : Math.max(0, 100 - ((row.fail_reasons || []).length * 20));
+}
+function median(values) {
+  if (!values.length) return 0;
+  const s = [...values].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
 
 const currentPath = process.argv[2];
 const baselinePath = process.argv[3];
 const outPath = process.argv[4] || path.resolve('artifacts/helios-readiness-trend.v1.json');
+const outSummaryPath = process.argv[5] || path.resolve('artifacts/helios-readiness-trend-summary.v1.json');
 if (!currentPath || !baselinePath) {
-  fail('Usage: node apps/mobile/scripts/check-readiness-trend.js <current.gate-summary.json> <baseline.gate-summary.json> [out.json]', 64);
+  fail('Usage: node apps/mobile/scripts/check-readiness-trend.js <current.gate-summary.json> <baseline.gate-summary.json> [trend.out.json] [summary.out.json]', 64);
 }
 if (!fs.existsSync(baselinePath)) fail(`missing baseline: ${baselinePath}`, 5);
 
@@ -45,8 +55,8 @@ for (const ex of EXERCISES) {
   const b = bm.get(ex);
   if (!c || !b) fail(`missing exercise in ${!c ? 'current' : 'baseline'}: ${ex}`);
 
-  const cScore = typeof c.quality_score === 'number' ? c.quality_score : Math.max(0, 100 - ((c.fail_reasons || []).length * 20));
-  const bScore = typeof b.quality_score === 'number' ? b.quality_score : Math.max(0, 100 - ((b.fail_reasons || []).length * 20));
+  const cScore = scoreOf(c);
+  const bScore = scoreOf(b);
   const delta = cScore - bScore;
   const band = delta > 0 ? 'improved' : delta < 0 ? 'degraded' : 'flat';
 
@@ -75,8 +85,37 @@ const trend = {
   ci_failures: ciFailures,
 };
 
+const improved = exercises.filter((e) => e.band === 'improved');
+const flat = exercises.filter((e) => e.band === 'flat');
+const degraded = exercises.filter((e) => e.band === 'degraded');
+const deltas = exercises.map((e) => e.delta);
+const worst = [...exercises].sort((a, b) => a.delta - b.delta).slice(0, 3).map((e) => ({ exercise: e.exercise, delta: e.delta }));
+const gatedIncidents = exercises
+  .filter((e) => e.band === 'degraded' && e.gate_pass === true && Math.abs(e.delta) > DEGRADE_THRESHOLD)
+  .map((e) => ({ exercise: e.exercise, delta: e.delta }));
+
+const summary = {
+  schemaVersion: 'helios-readiness-trend-summary.v1',
+  threshold_profile_version: current.threshold_profile_version,
+  totals: {
+    exercises: EXERCISES.length,
+    improved_count: improved.length,
+    flat_count: flat.length,
+    degraded_count: degraded.length,
+    improved_rate: improved.length / EXERCISES.length,
+    flat_rate: flat.length / EXERCISES.length,
+    degraded_rate: degraded.length / EXERCISES.length,
+  },
+  median_delta: median(deltas),
+  worst_deltas: worst,
+  gated_degrade_incidents: gatedIncidents,
+  degrade_threshold: DEGRADE_THRESHOLD,
+};
+
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
+fs.mkdirSync(path.dirname(outSummaryPath), { recursive: true });
 fs.writeFileSync(outPath, JSON.stringify(trend, null, 2) + '\n', 'utf8');
+fs.writeFileSync(outSummaryPath, JSON.stringify(summary, null, 2) + '\n', 'utf8');
 
 if (ciFailures.length) {
   console.error(`[readiness-trend] FAIL: ${ciFailures.length} degraded exercise(s) exceeded threshold while gate_pass=true`);
@@ -86,3 +125,4 @@ if (ciFailures.length) {
 
 console.log('[readiness-trend] PASS: no degradations breaching CI policy');
 console.log(`[readiness-trend] artifact: ${path.resolve(outPath)}`);
+console.log(`[readiness-trend] summary: ${path.resolve(outSummaryPath)}`);

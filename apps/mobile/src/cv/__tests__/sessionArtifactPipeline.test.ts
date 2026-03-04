@@ -27,6 +27,9 @@ describe('ReadinessArtifactPipeline', () => {
     const pipeline = new ReadinessArtifactPipeline();
     const out = pipeline.endSession({ sessionId: 'session-1', tracker });
 
+    expect(out.compact.schemaVersion).toBe('orion.readiness.gate.v1');
+    expect(out.compact.exercises).toHaveLength(10);
+
     const fixturePath = join(__dirname, 'fixtures', 'orion_readiness_session_fixture.json');
     const fixture = readFileSync(fixturePath, 'utf8');
     expect(out.json.trim()).toBe(fixture.trim());

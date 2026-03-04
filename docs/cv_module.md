@@ -202,3 +202,20 @@ Fallback guidance:
   - "Step back so full body is visible"
   - "Increase lighting / reduce occlusion"
 - If native CV provider is unavailable, inject a mock provider and keep source as `disconnected` to safely avoid false counts.
+
+## Runtime Exercise ID Contract (Selector + CV)
+
+Runtime selector/mapping now supports and normalizes the full 10-exercise contract:
+
+- squat
+- pushup
+- sit_to_stand
+- lunge
+- calf_raise
+- glute_bridge
+- shoulder_abduction
+- heel_raise
+- knee_extension
+- plank_hold
+
+Compatibility rule: legacy incoming id `plank` is normalized to `plank_hold` before analyzer selection.

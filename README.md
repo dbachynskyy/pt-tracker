@@ -162,3 +162,5 @@ ATLAS_READINESS_FILE=schemas/cv/native-readiness.atlas.fixture.json \
 HELIOS_READINESS_FILE=schemas/cv/native-readiness.helios.fixture.json \
 bash scripts/run-cross-repo-cv-regression-harness.sh fixtures
 ```
+
+Manual Actions workflow for release gate: `.github/workflows/cross-repo-live-strict-gate.yml` (workflow_dispatch, publishes full/summary/trend artifacts).

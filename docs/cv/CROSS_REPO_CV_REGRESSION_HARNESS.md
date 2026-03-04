@@ -143,3 +143,26 @@ Summary tracks deltas vs previous summary artifact:
 - `trend.fail_delta`
 - `trend.blocked_delta`
 - status change flags
+
+
+## Manual CI workflow (live strict gate)
+
+Workflow: `.github/workflows/cross-repo-live-strict-gate.yml`
+
+Run from Actions → **Cross-Repo Live Strict Gate** with `workflow_dispatch` inputs:
+- `atlas_dir`
+- `helios_dir`
+- `atlas_readiness_file`
+- `helios_readiness_file`
+- `previous_summary_artifact` (optional)
+
+Policy enforcement:
+- Run fails on `FAIL_FAST`
+- Run fails on `AUTH_BLOCKER`
+- Run fails on `CREDITS_BLOCKER`
+- Run fails on strict gate non-pass statuses (`FAIL/BLOCKED/NOT_LIVE`)
+
+Published artifacts:
+- full: `cross-repo-cv-regression.{json,md}`
+- summary: `cross-repo-cv-regression-summary.{json,md}`
+- trend diff: `cross-repo-cv-regression-trend.{json,md}`

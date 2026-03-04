@@ -94,6 +94,7 @@ describe('SessionScreen CV integration', () => {
     expect(getByTestId('exercise-option-squat')).toBeTruthy();
     expect(getByTestId('exercise-option-plank')).toBeTruthy();
     expect(getByTestId('start-session-btn')).toBeTruthy();
+    expect(getByTestId('provider-health-status').props.children.join('')).toContain('READY');
   });
 
   it('shows provider unavailable state', async () => {
@@ -105,6 +106,7 @@ describe('SessionScreen CV integration', () => {
     });
 
     expect(getByTestId('provider-unavailable')).toBeTruthy();
+    expect(getByTestId('provider-health-status').props.children.join('')).toContain('UNAVAILABLE');
   });
 
   it('shows permission denied state', async () => {

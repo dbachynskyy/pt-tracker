@@ -72,3 +72,17 @@ fi
 
 # Final cross-lane contract (strict)
 node "$SCRIPT_DIR/build-realcv-final-contract-report.js"   "$ROOT_DIR/artifacts/atlas-coverage-gate.v1.json"   "$ROOT_DIR/artifacts/helios-exercise-readiness.v1.json"   "$ROOT_DIR/artifacts/helios-exercise-readiness-evidence.v1.json"   "$ROOT_DIR/artifacts/realcv-10ex-summary.v1.json"   "$ROOT_DIR/artifacts/realcv-final-contract.v1.json"   "$ROOT_DIR/artifacts/realcv-final-contract.md"
+
+
+# Release-candidate matrix + trend delta
+PRIOR_FINAL_CONTRACT_FILE="${PRIOR_FINAL_CONTRACT_FILE:-$ROOT_DIR/artifacts/realcv-final-contract.prev.v1.json}"
+node "$SCRIPT_DIR/build-realcv-release-candidate-matrix.js"   "$ROOT_DIR/artifacts/realcv-final-contract.v1.json"   "$PRIOR_FINAL_CONTRACT_FILE"   "$ROOT_DIR/artifacts/realcv-release-candidate-matrix.v1.json"   "$ROOT_DIR/artifacts/realcv-release-candidate-matrix.md" || true
+
+# hard-fail regressions unless override token provided
+node -e '
+  const fs=require("fs");
+  const m=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
+  const token=process.env.ALLOW_REALCV_REGRESSION_OVERRIDE||"";
+  if (m.regressions>0 && token!="ALLOW") process.exit(1);
+  process.exit(0);
+' "$ROOT_DIR/artifacts/realcv-release-candidate-matrix.v1.json"

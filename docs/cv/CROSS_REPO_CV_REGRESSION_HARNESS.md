@@ -377,3 +377,11 @@ If upstream artifact mismatch occurs:
 Compatibility fallback:
 - run orchestrator + release wrapper first to regenerate Orion artifacts,
 - or provide mapped compatibility files into expected artifact paths before final contract step.
+
+
+Release-candidate matrix/delta artifact:
+- `artifacts/realcv-release-candidate-matrix.v1.json`
+- `artifacts/realcv-release-candidate-matrix.md`
+
+Built from current final contract + prior final contract. Per-exercise deltas: `improved|regressed|unchanged`.
+Wrapper blocks regressions unless `ALLOW_REALCV_REGRESSION_OVERRIDE=ALLOW`.

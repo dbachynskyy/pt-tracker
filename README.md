@@ -208,3 +208,11 @@ Release gate also writes per-exercise table: `artifacts/realcv-10ex-status.v1.js
 Release wrapper summary CI tokens: `REALCV_10EX_SUMMARY[v1] overall_pass=<n>/10` and `REALCV_10EX_BLOCKERS[v1] count=<k>`.
 
 Final cross-lane contract token: `REALCV_FINAL_CONTRACT[v1] pass=<n>/10 release=<PASS|FAIL>`.
+
+
+Release-candidate matrix/delta artifact:
+- `artifacts/realcv-release-candidate-matrix.v1.json`
+- `artifacts/realcv-release-candidate-matrix.md`
+
+Built from current final contract + prior final contract. Per-exercise deltas: `improved|regressed|unchanged`.
+Wrapper blocks regressions unless `ALLOW_REALCV_REGRESSION_OVERRIDE=ALLOW`.

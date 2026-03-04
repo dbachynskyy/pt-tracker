@@ -1,0 +1,16 @@
+{
+  "version": "atlas.native.capture.v1",
+  "generatedAt": "2026-03-04T00:00:00.000Z",
+  "captures": [
+    { "exercise": "squat", "source": "placeholder", "frames": [] },
+    { "exercise": "pushup", "source": "placeholder", "frames": [] },
+    { "exercise": "sit_to_stand", "source": "placeholder", "frames": [] },
+    { "exercise": "plank", "source": "placeholder", "frames": [] },
+    { "exercise": "lunge", "source": "placeholder", "frames": [] },
+    { "exercise": "glute_bridge", "source": "placeholder", "frames": [] },
+    { "exercise": "knee_extension", "source": "placeholder", "frames": [] },
+    { "exercise": "heel_raise", "source": "placeholder", "frames": [] },
+    { "exercise": "calf_raise", "source": "placeholder", "frames": [] },
+    { "exercise": "shoulder_abduction", "source": "placeholder", "frames": [] }
+  ]
+}

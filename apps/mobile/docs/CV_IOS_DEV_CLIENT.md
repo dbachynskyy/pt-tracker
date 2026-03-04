@@ -58,3 +58,18 @@ npx expo start --dev-client
 - `ERROR` + `BAD_TIMESTAMP` => stale/invalid frame timestamp.
 - `ERROR` + `CAMERA_DENIED` => camera permission denied at native layer.
 - `ERROR` + `SESSION_INTERRUPTED` => app/camera session interruption.
+
+## Current known blocker (verbatim)
+When validating native build on this host:
+
+```
+xcode-select: error: tool 'xcodebuild' requires Xcode, but active developer directory '/Library/Developer/CommandLineTools' is a command line tools instance
+```
+
+Fallback commands for Xcode-capable host:
+```bash
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+cd apps/mobile
+npx expo run:ios
+npx expo start --dev-client
+```

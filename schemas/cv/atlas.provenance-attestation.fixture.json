@@ -1,0 +1,4 @@
+{
+  "attestation_status": "verified",
+  "provenance": { "verified": true, "signer": "atlas-ci" }
+}

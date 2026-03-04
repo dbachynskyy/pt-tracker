@@ -392,3 +392,31 @@ Expected failure output example:
 
 - `[readiness-stability] FAIL: 1 severe instability incident(s)`
 - ` - pushup: volatility=...`
+
+### Blocker normalization (readiness/stability artifacts)
+
+Readiness/stability outputs now include deterministic blocker fields:
+
+- `blocker_catalog[]` — subset of:
+  - `AUTH_BLOCKER`
+  - `CREDITS_BLOCKER`
+  - `RATE_LIMIT_BLOCKER`
+- `fallback_options[]` — suggested non-blocking paths:
+  - fixture mode
+  - replay cached bundle
+  - defer upload gate and run local non-upload checks
+
+Detection uses status/failure text signals (e.g. `401/403/auth`, `credits/quota`, `429/rate limit`).
+
+Example snippet:
+
+```json
+{
+  "blocker_catalog": ["AUTH_BLOCKER", "RATE_LIMIT_BLOCKER"],
+  "fallback_options": [
+    "Use fixture mode for deterministic CV validation",
+    "Replay cached readiness bundle without remote auth",
+    "Backoff and retry in next lane slot"
+  ]
+}
+```

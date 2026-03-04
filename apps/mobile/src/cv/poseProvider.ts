@@ -2,6 +2,18 @@ import { emitCvEvent } from './instrumentation';
 import { LandmarkAdapter } from './types';
 import { registerLandmarkAdapter } from './landmarkAdapter';
 
+export type ProviderErrorCode =
+  | 'MODULE_MISSING'
+  | 'BAD_PAYLOAD_SHAPE'
+  | 'BAD_LANDMARKS'
+  | 'BAD_CONFIDENCE'
+  | 'BAD_TIMESTAMP';
+
+export interface ProviderError {
+  code: ProviderErrorCode;
+  reason: string;
+}
+
 export interface PoseProvider {
   readonly id: string;
   initialize(): Promise<void>;
@@ -15,6 +27,7 @@ interface ProviderRuntimeState {
   status: PoseProviderStatus;
   providerId: string;
   error?: string;
+  errorCode?: ProviderErrorCode;
 }
 
 const unavailableProvider: PoseProvider = {
@@ -37,12 +50,32 @@ export function registerPoseProvider(next: PoseProvider) {
   state = { status: 'idle', providerId: next.id };
 }
 
+export function setPoseProviderRuntimeError(error: ProviderError) {
+  state = {
+    ...state,
+    status: 'error',
+    error: error.reason,
+    errorCode: error.code,
+  };
+}
+
+export function clearPoseProviderRuntimeError() {
+  if (state.status === 'error') {
+    state = { status: 'ready', providerId: state.providerId };
+  }
+}
+
 export async function initializePoseProvider() {
   try {
     await provider.initialize();
     const available = await provider.isAvailable();
     if (!available) {
-      state = { status: 'unavailable', providerId: provider.id };
+      state = {
+        status: 'unavailable',
+        providerId: provider.id,
+        errorCode: 'MODULE_MISSING',
+        error: 'Native pose module unavailable',
+      };
       registerLandmarkAdapter(provider.createAdapter());
       emitCvEvent({ type: 'cv_provider_initialized', providerId: provider.id, available: false });
       return state;
@@ -57,6 +90,7 @@ export async function initializePoseProvider() {
       status: 'error',
       providerId: provider.id,
       error: error instanceof Error ? error.message : 'Unknown provider error',
+      errorCode: 'BAD_PAYLOAD_SHAPE',
     };
     emitCvEvent({ type: 'cv_provider_init_error', error: state.error });
     return state;

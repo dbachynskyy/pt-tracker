@@ -30,12 +30,14 @@ export default function SessionScreen() {
   const [cvUnavailable, setCvUnavailable] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [providerUnavailable, setProviderUnavailable] = useState(false);
+  const [providerMalformed, setProviderMalformed] = useState(false);
   const [lowConfidence, setLowConfidence] = useState(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   const detectorRef = useRef<Detector | null>(null);
   const cameraRef = useRef<CameraView | null>(null);
   const mockEnabled = useMemo(() => isMockCvEnabled(), []);
+  const providerState = getPoseProviderState();
 
   const ensureCameraPermission = useCallback(async () => {
     if (cameraPermission?.granted) {
@@ -83,13 +85,15 @@ export default function SessionScreen() {
       return;
     }
 
-    const providerState = getPoseProviderState();
-    if (providerState.status !== 'ready') {
-      setProviderUnavailable(true);
+    const state = getPoseProviderState();
+    if (state.status !== 'ready') {
+      setProviderUnavailable(state.status === 'unavailable');
+      setProviderMalformed(state.status === 'error');
       return;
     }
 
     setProviderUnavailable(false);
+    setProviderMalformed(false);
     setLoading(true);
     try {
       const s = await api.createSession({});
@@ -133,13 +137,19 @@ export default function SessionScreen() {
     setFinalOutput(null);
     setCvUnavailable(false);
     setProviderUnavailable(false);
+    setProviderMalformed(false);
     setLowConfidence(false);
   }, [stopDetector]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Exercise Session</Text>
-      <Text style={styles.providerHealth} testID="provider-health-status">Pose provider: {getPoseProviderState().status.toUpperCase()}</Text>
+      <Text style={styles.providerHealth} testID="provider-health-status">
+        Pose provider: {providerState.status.toUpperCase()}
+      </Text>
+      <Text style={styles.providerDebug} testID="provider-last-error">
+        {providerState.errorCode ? `${providerState.errorCode}: ${providerState.error ?? 'unknown'}` : 'NONE'}
+      </Text>
 
       {phase === 'idle' && (
         <>
@@ -161,6 +171,11 @@ export default function SessionScreen() {
           {providerUnavailable && (
             <View style={styles.cvUnavailable} testID="provider-unavailable">
               <Text style={styles.cvUnavailableText}>Pose provider unavailable on this build/device</Text>
+            </View>
+          )}
+          {providerMalformed && (
+            <View style={styles.cvUnavailable} testID="provider-malformed">
+              <Text style={styles.cvUnavailableText}>Pose provider returned malformed payload</Text>
             </View>
           )}
           <Text style={styles.subtitle}>Ready to start your PT session?</Text>
@@ -225,7 +240,9 @@ export default function SessionScreen() {
 
 const styles = StyleSheet.create({
   container: { flexGrow: 1, padding: 24, paddingTop: 32, backgroundColor: '#F9FAFB' },
-  title: { fontSize: 26, fontWeight: '700', marginBottom: 24, color: '#111827' },
+  title: { fontSize: 26, fontWeight: '700', marginBottom: 4, color: '#111827' },
+  providerHealth: { fontSize: 12, color: '#6B7280', marginBottom: 2, fontWeight: '600' },
+  providerDebug: { fontSize: 11, color: '#9CA3AF', marginBottom: 12, fontFamily: 'monospace' },
   subtitle: { fontSize: 15, color: '#6B7280', textAlign: 'center', marginTop: 20, marginBottom: 24, alignSelf: 'center', maxWidth: 280 },
   badge: { backgroundColor: '#FEF3C7', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 4, alignSelf: 'flex-start', marginBottom: 8 },
   badgeText: { color: '#D97706', fontWeight: '600', fontSize: 13 },

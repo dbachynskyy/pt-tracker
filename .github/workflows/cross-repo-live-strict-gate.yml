@@ -1,0 +1,157 @@
+name: Cross-Repo Live Strict Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      atlas_dir:
+        description: "Atlas checkout path on runner"
+        required: false
+        default: "/tmp/pt-atlas"
+        type: string
+      helios_dir:
+        description: "Helios checkout path on runner"
+        required: false
+        default: "/tmp/pt-helios"
+        type: string
+      atlas_readiness_file:
+        description: "Atlas readiness JSON path (optional, defaults to fixture)"
+        required: false
+        default: "schemas/cv/native-readiness.atlas.fixture.json"
+        type: string
+      helios_readiness_file:
+        description: "Helios readiness JSON path (optional, defaults to fixture)"
+        required: false
+        default: "schemas/cv/native-readiness.helios.fixture.json"
+        type: string
+      previous_summary_artifact:
+        description: "Optional previous summary artifact filename (json)"
+        required: false
+        default: ""
+        type: string
+
+jobs:
+  live-strict-gate:
+    name: Live strict gate (fail-fast enforced)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Ensure artifacts dir
+        run: mkdir -p artifacts
+
+      - name: Download previous summary artifact (optional)
+        if: ${{ inputs.previous_summary_artifact != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.previous_summary_artifact }}
+          path: artifacts/previous
+        continue-on-error: true
+
+      - name: Resolve previous summary path
+        id: prev
+        run: |
+          if compgen -G "artifacts/previous/*.json" > /dev/null; then
+            PREV=$(ls -1 artifacts/previous/*.json | head -1)
+            echo "path=$PREV" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=artifacts/cross-repo-cv-regression-summary.json" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run live strict gate
+        continue-on-error: true
+        env:
+          ATLAS_DIR: ${{ inputs.atlas_dir }}
+          HELIOS_DIR: ${{ inputs.helios_dir }}
+          ATLAS_READINESS_FILE: ${{ inputs.atlas_readiness_file }}
+          HELIOS_READINESS_FILE: ${{ inputs.helios_readiness_file }}
+        run: |
+          node scripts/run-cross-repo-cv-regression-harness.js \
+            --mode live \
+            --strict-gate \
+            --atlas-dir "$ATLAS_DIR" \
+            --helios-dir "$HELIOS_DIR" \
+            --atlas-readiness-file "$ATLAS_READINESS_FILE" \
+            --helios-readiness-file "$HELIOS_READINESS_FILE" \
+            --out artifacts/cross-repo-cv-regression.json \
+            --out-md artifacts/cross-repo-cv-regression.md \
+            --out-summary artifacts/cross-repo-cv-regression-summary.json \
+            --out-summary-md artifacts/cross-repo-cv-regression-summary.md \
+            --previous-summary "${{ steps.prev.outputs.path }}"
+
+      - name: Build trend diff artifact
+        if: always()
+        run: |
+          node -e '
+            const fs=require("fs");
+            const summary=JSON.parse(fs.readFileSync("artifacts/cross-repo-cv-regression-summary.json","utf8"));
+            const diff={
+              generatedAt: new Date().toISOString(),
+              status: summary.status,
+              strictGateStatus: summary.strictGateStatus,
+              trend: summary.trend || null,
+              failFast: summary.failFast || {triggered:false,categories:[]},
+              pass_count: summary.pass_count,
+              fail_count: summary.fail_count,
+              blocked_count: summary.blocked_count
+            };
+            fs.writeFileSync("artifacts/cross-repo-cv-regression-trend.json", JSON.stringify(diff,null,2));
+            const md=[
+              "# Cross-Repo Trend Diff",
+              "",
+              `- status: ${diff.status}`,
+              `- strictGateStatus: ${diff.strictGateStatus}`,
+              `- pass_count: ${diff.pass_count}`,
+              `- fail_count: ${diff.fail_count}`,
+              `- blocked_count: ${diff.blocked_count}`,
+              "",
+              "## Trend",
+              "",
+              "```json",
+              JSON.stringify(diff.trend,null,2),
+              "```",
+              "",
+              "## Fail-fast",
+              "",
+              "```json",
+              JSON.stringify(diff.failFast,null,2),
+              "```",
+            ].join("\n");
+            fs.writeFileSync("artifacts/cross-repo-cv-regression-trend.md", md);
+          '
+
+      - name: Upload full + summary + trend artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-repo-live-strict-gate-${{ github.run_id }}
+          path: |
+            artifacts/cross-repo-cv-regression.json
+            artifacts/cross-repo-cv-regression.md
+            artifacts/cross-repo-cv-regression-summary.json
+            artifacts/cross-repo-cv-regression-summary.md
+            artifacts/cross-repo-cv-regression-trend.json
+            artifacts/cross-repo-cv-regression-trend.md
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Enforce fail-fast policy
+        if: always()
+        run: |
+          node -e '
+            const fs=require("fs");
+            const s=JSON.parse(fs.readFileSync("artifacts/cross-repo-cv-regression-summary.json","utf8"));
+            const cats=(s.failFast && s.failFast.categories ? s.failFast.categories.map(c=>c.code) : []);
+            const failFast = s.strictGateStatus === "FAIL_FAST";
+            const hasAuth = cats.includes("AUTH_BLOCKER");
+            const hasCredits = cats.includes("CREDITS_BLOCKER");
+            const badStatus = ["FAIL","BLOCKED","NOT_LIVE"].includes(s.strictGateStatus) || s.status !== "PASS";
+            if (failFast || hasAuth || hasCredits || badStatus) {
+              console.error("FAIL: strict live gate policy violation", {strictGateStatus:s.strictGateStatus, categories:cats});
+              process.exit(1);
+            }
+            console.log("PASS: no fail-fast/auth/credits blockers");
+          '

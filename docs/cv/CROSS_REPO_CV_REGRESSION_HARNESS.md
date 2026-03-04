@@ -15,6 +15,10 @@ bash scripts/run-cross-repo-cv-regression-harness.sh fixtures
 ATLAS_DIR=/tmp/pt-atlas HELIOS_DIR=/tmp/pt-helios \
   bash scripts/run-cross-repo-cv-regression-harness.sh live
 
+# Release gate (strict, requires live mode and 10/10 pass)
+ATLAS_DIR=/tmp/pt-atlas HELIOS_DIR=/tmp/pt-helios \
+  bash scripts/run-cross-repo-cv-regression-harness.sh live --strict-gate
+
 # Auto mode: tries live, falls back to fixtures with explicit blocker note
 bash scripts/run-cross-repo-cv-regression-harness.sh auto
 ```
@@ -23,6 +27,8 @@ bash scripts/run-cross-repo-cv-regression-harness.sh auto
 
 - `artifacts/cross-repo-cv-regression.json`
 - `artifacts/cross-repo-cv-regression.md`
+- `artifacts/cross-repo-cv-regression-summary.json`
+- `artifacts/cross-repo-cv-regression-summary.md`
 
 ## Exit codes
 
@@ -66,3 +72,27 @@ This is used to audit why a check passed (or why evidence is missing).
 ```bash
 node scripts/__tests__/cross-repo-harness-parser.test.js
 ```
+
+
+## CI usage (exact command)
+
+```bash
+bash scripts/run-cross-repo-cv-regression-harness.sh fixtures
+```
+
+## Release gate usage (exact command)
+
+```bash
+ATLAS_DIR=/tmp/pt-atlas HELIOS_DIR=/tmp/pt-helios \
+  bash scripts/run-cross-repo-cv-regression-harness.sh live --strict-gate
+```
+
+## Trend-friendly summary fields
+
+`cross-repo-cv-regression-summary.json` includes:
+- `generatedAt`
+- `atlas_git_sha`
+- `helios_git_sha`
+- `pass_count`
+- `blocked_count`
+- strict-gate status fields

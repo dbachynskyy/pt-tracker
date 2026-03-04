@@ -227,6 +227,8 @@ jobs:
           path: |
             artifacts/cross-repo-cv-regression.json
             artifacts/cross-repo-cv-regression.md
+            artifacts/cross-repo-cv-regression-summary.json
+            artifacts/cross-repo-cv-regression-summary.md
           retention-days: 30
           if-no-files-found: warn
 

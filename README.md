@@ -145,3 +145,12 @@ Regression harness parser unit test:
 ```bash
 node scripts/__tests__/cross-repo-harness-parser.test.js
 ```
+
+Strict live release gate:
+
+```bash
+ATLAS_DIR=/tmp/pt-atlas HELIOS_DIR=/tmp/pt-helios \
+  bash scripts/run-cross-repo-cv-regression-harness.sh live --strict-gate
+```
+
+Summary artifacts: `artifacts/cross-repo-cv-regression-summary.json`, `artifacts/cross-repo-cv-regression-summary.md`.

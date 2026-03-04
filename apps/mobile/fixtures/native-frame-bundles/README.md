@@ -145,3 +145,21 @@ Gate requirements:
   `squat,pushup,sit_to_stand,plank,lunge,glute_bridge,knee_extension,heel_raise,calf_raise,shoulder_abduction`
 - each required exercise has `pass=true`
 - no unexpected exercise IDs
+
+
+### Regenerate artifacts from real captures
+```bash
+cd apps/mobile
+# 1) import raw collector dumps (hard-fails provenance violations)
+node scripts/import-native-captures.mjs /path/to/raw-captures.json fixtures/native-frame-bundles/atlas-captures.v1.json
+
+# 2) provenance attestation
+node scripts/provenance-attestation.mjs fixtures/native-frame-bundles/atlas-captures.v1.json artifacts/atlas-provenance-attestation.v1.json
+
+# 3) coverage gate + capture validation artifact
+node scripts/check-realcv-coverage.mjs \
+  artifacts/atlas-provenance-attestation.v1.json \
+  artifacts/atlas-coverage-gate.v1.json \
+  fixtures/native-frame-bundles/atlas-captures.v1.json \
+  artifacts/atlas-capture-validation.v1.json
+```

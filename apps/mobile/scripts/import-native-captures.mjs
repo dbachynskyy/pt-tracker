@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { CANONICAL_EXERCISES, validateBundle } from './native-capture-schema.mjs';
+import { assertProvenanceAttested } from './provenance-attestation.mjs';
 
 const inPath = process.argv[2];
 const outPath = process.argv[3] ?? path.resolve('fixtures/native-frame-bundles/atlas-captures.v1.json');
@@ -18,7 +19,11 @@ const captures = CANONICAL_EXERCISES.map((exercise) => {
   if (!match) return { exercise, source: 'placeholder', frames: [] };
   return {
     exercise,
-    source: match.source ?? 'imported',
+    source: match.source ?? 'placeholder',
+    device_id: match.device_id ?? 'placeholder',
+    os_version: match.os_version ?? null,
+    app_version: match.app_version ?? null,
+    capture_ts: match.capture_ts ?? null,
     frames: Array.isArray(match.frames) ? match.frames : [],
   };
 });
@@ -30,6 +35,7 @@ const bundle = {
 };
 
 validateBundle(bundle);
+assertProvenanceAttested(bundle);
 
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
 fs.writeFileSync(outPath, `${JSON.stringify(bundle, null, 2)}\n`);

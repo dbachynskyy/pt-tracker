@@ -2,10 +2,12 @@ import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from '../src/hooks/useAuth';
-import { initializePoseProvider } from '../src/cv/poseProvider';
+import { createNativePoseProvider } from '../src/cv/nativePoseProvider';
+import { initializePoseProvider, registerPoseProvider } from '../src/cv/poseProvider';
 
 export default function RootLayout() {
   useEffect(() => {
+    registerPoseProvider(createNativePoseProvider());
     initializePoseProvider();
   }, []);
 

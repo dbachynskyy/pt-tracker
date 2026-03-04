@@ -139,6 +139,7 @@ export default function SessionScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Exercise Session</Text>
+      <Text style={styles.providerHealth} testID="provider-health-status">Pose provider: {getPoseProviderState().status.toUpperCase()}</Text>
 
       {phase === 'idle' && (
         <>

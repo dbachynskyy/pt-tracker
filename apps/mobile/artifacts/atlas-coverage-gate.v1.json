@@ -1,0 +1,152 @@
+{
+  "version": "atlas-coverage-gate.v1",
+  "generatedAt": "2026-03-04T10:14:35.974Z",
+  "aggregate": {
+    "required_exercises": 10,
+    "passed_exercises": 0,
+    "failed_exercises": 10,
+    "unknown_exercise_ids": [],
+    "gate_pass": false
+  },
+  "exercises": [
+    {
+      "exercise": "squat",
+      "present": true,
+      "pass": false,
+      "gate_pass": false,
+      "reasons": [
+        "exercise_not_attested",
+        "device_id_missing",
+        "os_version_invalid",
+        "app_version_invalid",
+        "capture_ts_invalid"
+      ]
+    },
+    {
+      "exercise": "pushup",
+      "present": true,
+      "pass": false,
+      "gate_pass": false,
+      "reasons": [
+        "exercise_not_attested",
+        "source_placeholder_or_simulated",
+        "device_id_missing",
+        "os_version_invalid",
+        "app_version_invalid",
+        "capture_ts_invalid"
+      ]
+    },
+    {
+      "exercise": "sit_to_stand",
+      "present": true,
+      "pass": false,
+      "gate_pass": false,
+      "reasons": [
+        "exercise_not_attested",
+        "source_placeholder_or_simulated",
+        "device_id_missing",
+        "os_version_invalid",
+        "app_version_invalid",
+        "capture_ts_invalid"
+      ]
+    },
+    {
+      "exercise": "plank",
+      "present": true,
+      "pass": false,
+      "gate_pass": false,
+      "reasons": [
+        "exercise_not_attested",
+        "source_placeholder_or_simulated",
+        "device_id_missing",
+        "os_version_invalid",
+        "app_version_invalid",
+        "capture_ts_invalid"
+      ]
+    },
+    {
+      "exercise": "lunge",
+      "present": true,
+      "pass": false,
+      "gate_pass": false,
+      "reasons": [
+        "exercise_not_attested",
+        "source_placeholder_or_simulated",
+        "device_id_missing",
+        "os_version_invalid",
+        "app_version_invalid",
+        "capture_ts_invalid"
+      ]
+    },
+    {
+      "exercise": "glute_bridge",
+      "present": true,
+      "pass": false,
+      "gate_pass": false,
+      "reasons": [
+        "exercise_not_attested",
+        "source_placeholder_or_simulated",
+        "device_id_missing",
+        "os_version_invalid",
+        "app_version_invalid",
+        "capture_ts_invalid"
+      ]
+    },
+    {
+      "exercise": "knee_extension",
+      "present": true,
+      "pass": false,
+      "gate_pass": false,
+      "reasons": [
+        "exercise_not_attested",
+        "source_placeholder_or_simulated",
+        "device_id_missing",
+        "os_version_invalid",
+        "app_version_invalid",
+        "capture_ts_invalid"
+      ]
+    },
+    {
+      "exercise": "heel_raise",
+      "present": true,
+      "pass": false,
+      "gate_pass": false,
+      "reasons": [
+        "exercise_not_attested",
+        "source_placeholder_or_simulated",
+        "device_id_missing",
+        "os_version_invalid",
+        "app_version_invalid",
+        "capture_ts_invalid"
+      ]
+    },
+    {
+      "exercise": "calf_raise",
+      "present": true,
+      "pass": false,
+      "gate_pass": false,
+      "reasons": [
+        "exercise_not_attested",
+        "source_placeholder_or_simulated",
+        "device_id_missing",
+        "os_version_invalid",
+        "app_version_invalid",
+        "capture_ts_invalid"
+      ]
+    },
+    {
+      "exercise": "shoulder_abduction",
+      "present": true,
+      "pass": false,
+      "gate_pass": false,
+      "reasons": [
+        "exercise_not_attested",
+        "source_placeholder_or_simulated",
+        "device_id_missing",
+        "os_version_invalid",
+        "app_version_invalid",
+        "capture_ts_invalid"
+      ]
+    }
+  ]
+}

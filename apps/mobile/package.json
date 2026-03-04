@@ -9,7 +9,8 @@
     "web": "expo start --web",
     "lint": "eslint .",
     "test": "jest",
-    "test:watch": "jest --watchAll"
+    "test:watch": "jest --watchAll",
+    "coverage:gate": "node scripts/check-realcv-coverage.mjs artifacts/atlas-provenance-attestation.v1.json artifacts/atlas-coverage-gate.v1.json"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

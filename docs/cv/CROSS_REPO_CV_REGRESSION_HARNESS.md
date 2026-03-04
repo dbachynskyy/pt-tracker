@@ -181,3 +181,28 @@ New blocker codes:
 - `MISSING_READINESS_EXERCISE`
 
 Each blocker in summary JSON includes a `fallback` suggestion.
+
+
+## RealCV rollout gate wrapper
+
+```bash
+ATLAS_DIR=/tmp/pt-atlas HELIOS_DIR=/tmp/pt-helios \
+ATLAS_READINESS_FILE=schemas/cv/native-readiness.atlas.fixture.json \
+HELIOS_READINESS_FILE=schemas/cv/native-readiness.helios.fixture.json \
+bash scripts/run-realcv-rollout-gate.sh
+```
+
+Outputs:
+- `artifacts/cross-repo-cv-regression-summary.json`
+- `artifacts/realcv-rollout-status.json`
+
+`realcv-rollout-status.json` fields:
+- `exercise_coverage`
+- `blockers`
+- `tests_passed`
+- `next_actions`
+
+Fallback behavior:
+- Missing readiness file -> `MISSING_READINESS_ARTIFACT` + fallback action in status
+- Unparseable readiness file -> `UNPARSEABLE_READINESS_ARTIFACT` + fallback action
+- Missing canonical readiness entries -> `MISSING_READINESS_EXERCISE` + regenerate readiness outputs

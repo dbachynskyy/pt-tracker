@@ -1,0 +1,77 @@
+{
+  "version": "atlas.native-readiness.v1",
+  "generatedAt": "2026-03-04T06:41:35.518Z",
+  "sourceBundle": "atlas-captures.v1.json",
+  "exercises": [
+    {
+      "exercise": "squat",
+      "status": "blocked",
+      "reason": "missing_capture_frames",
+      "frameCount": 0,
+      "successFrames": 0
+    },
+    {
+      "exercise": "pushup",
+      "status": "blocked",
+      "reason": "missing_capture_frames",
+      "frameCount": 0,
+      "successFrames": 0
+    },
+    {
+      "exercise": "sit_to_stand",
+      "status": "blocked",
+      "reason": "missing_capture_frames",
+      "frameCount": 0,
+      "successFrames": 0
+    },
+    {
+      "exercise": "plank",
+      "status": "blocked",
+      "reason": "missing_capture_frames",
+      "frameCount": 0,
+      "successFrames": 0
+    },
+    {
+      "exercise": "lunge",
+      "status": "blocked",
+      "reason": "missing_capture_frames",
+      "frameCount": 0,
+      "successFrames": 0
+    },
+    {
+      "exercise": "glute_bridge",
+      "status": "blocked",
+      "reason": "missing_capture_frames",
+      "frameCount": 0,
+      "successFrames": 0
+    },
+    {
+      "exercise": "knee_extension",
+      "status": "blocked",
+      "reason": "missing_capture_frames",
+      "frameCount": 0,
+      "successFrames": 0
+    },
+    {
+      "exercise": "heel_raise",
+      "status": "blocked",
+      "reason": "missing_capture_frames",
+      "frameCount": 0,
+      "successFrames": 0
+    },
+    {
+      "exercise": "calf_raise",
+      "status": "blocked",
+      "reason": "missing_capture_frames",
+      "frameCount": 0,
+      "successFrames": 0
+    },
+    {
+      "exercise": "shoulder_abduction",
+      "status": "blocked",
+      "reason": "missing_capture_frames",
+      "frameCount": 0,
+      "successFrames": 0
+    }
+  ]
+}

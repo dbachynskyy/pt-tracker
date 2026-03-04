@@ -444,3 +444,25 @@ Per exercise fields:
 - `checks` map (sample/confidence/rep-signal/status/quality-gate checks)
 
 Malformed input ID set fails fast to prevent partial merge tables.
+
+### Evidence-backed blocker schema
+
+`emit-exercise-readiness-matrix` accepts optional lane log/evidence input and emits:
+
+- `artifacts/helios-exercise-readiness-evidence.v1.json`
+
+Blocker entries include evidence:
+
+- `blocker` (`AUTH_BLOCKER|CREDITS_BLOCKER|RATE_LIMIT_BLOCKER|QUALITY_BLOCKER`)
+- `evidence.source` (log/artifact source)
+- `evidence.code_token` (matched token/code)
+- `evidence.timestamp` (if parseable)
+
+If explicit evidence is unavailable, fallback deterministic evidence is emitted:
+
+- `source: "derived_status"`
+- `code_token: "NONE"`
+
+Example call:
+
+- `npm --workspace apps/mobile run emit:exercise-readiness -- <orion.readiness.v1.json> <artifacts/helios-exercise-readiness.v1.json> <lane.log> <artifacts/helios-exercise-readiness-evidence.v1.json>`

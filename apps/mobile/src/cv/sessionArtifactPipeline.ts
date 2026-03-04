@@ -9,6 +9,11 @@ function emptyTelemetry(exerciseId: ExerciseId): ExerciseTelemetry {
     calibrationStatus: 'UNCALIBRATED',
     completedReps: 0,
     disconnectedFrames: 0,
+    sampleCount: 0,
+    confidenceP50: 0,
+    confidenceP90: 0,
+    repSignalPresent: false,
+    statusReason: 'UNCALIBRATED',
   };
 }
 

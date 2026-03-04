@@ -37,7 +37,8 @@ export function SessionScreen() {
     setCalStatus(st.status);
     setCalFrames(st.framesSeen);
     setCalRange(st.range);
-    telemetryRef.current.onFrame(exerciseId, st.status, sessionMs, frame.source === 'disconnected', st.reason);
+    const frameConfidence = frame.length ? frame.reduce((sum, lm) => sum + (lm.visibility ?? 0), 0) / frame.length : 0;
+    telemetryRef.current.onFrame(exerciseId, st.status, sessionMs, frame.source === 'disconnected', st.reason, frameConfidence);
   }, [exerciseId]);
 
   useEffect(() => {

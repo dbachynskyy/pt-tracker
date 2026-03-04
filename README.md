@@ -204,3 +204,5 @@ Produces `artifacts/realcv-release-readiness.v1.json` and exits non-zero on bloc
 Release gate v2 emits version-tagged CI line `REALCV_RELEASE_READINESS[v2] ...` and writes `artifacts/realcv-release-readiness.v2.json` (while preserving v1 output).
 
 Release gate also writes per-exercise table: `artifacts/realcv-10ex-status.v1.json` (10 fixed exercises).
+
+Release wrapper summary CI tokens: `REALCV_10EX_SUMMARY[v1] overall_pass=<n>/10` and `REALCV_10EX_BLOCKERS[v1] count=<k>`.

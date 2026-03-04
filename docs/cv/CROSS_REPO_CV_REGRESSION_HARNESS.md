@@ -338,3 +338,23 @@ Release-gate wrapper now emits `artifacts/realcv-10ex-status.v1.json` with 10 fi
 V2 release readiness consumes this artifact and blocks on missing/malformed contract with `REALCV_10EX_STATUS_MISSING_OR_MALFORMED`.
 
 CI log line for exercise table builder: `REALCV_10EX_STATUS[v1] pass=<n>/10`
+
+
+### 10-ex summary outputs
+
+After `run-realcv-release-gate.sh`, wrapper emits:
+- `artifacts/realcv-10ex-summary.v1.json`
+- `artifacts/realcv-10ex-summary.md`
+
+`realcv-10ex-summary.v1.json` fields:
+- `overall_pass`
+- `total`
+- `blocker_count`
+- `blockers[]`
+- `exercises[]` (exercise, atlas/helios/orion/overall/reasons)
+
+Deterministic CI log tokens:
+- `REALCV_10EX_SUMMARY[v1] overall_pass=<n>/10`
+- `REALCV_10EX_BLOCKERS[v1] count=<k>`
+
+Wrapper fails on any red exercise unless `ALLOW_PARTIAL_REALCV=1`.

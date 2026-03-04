@@ -13,13 +13,23 @@ jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }), {
   virtual: true,
 });
 
-jest.mock('expo-camera', () => ({
-  Camera: {
-    requestCameraPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted', granted: true }),
-  },
-  PermissionStatus: { GRANTED: 'granted' },
-  useCameraPermissions: () => [{ granted: true, status: 'granted' }, jest.fn().mockResolvedValue({ status: 'granted', granted: true })],
-}));
+jest.mock('expo-camera', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    Camera: {
+      requestCameraPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted', granted: true }),
+    },
+    CameraView: React.forwardRef((props: any, ref: any) => {
+      React.useImperativeHandle(ref, () => ({
+        takePictureAsync: jest.fn().mockResolvedValue({ width: 200, height: 300, base64: 'x' }),
+      }));
+      return React.createElement(View, props);
+    }),
+    PermissionStatus: { GRANTED: 'granted' },
+    useCameraPermissions: () => [{ granted: true, status: 'granted' }, jest.fn().mockResolvedValue({ status: 'granted', granted: true })],
+  };
+});
 
 // Mock the API client
 jest.mock('../../../src/api/client', () => ({

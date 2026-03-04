@@ -1,20 +1,28 @@
-/**
- * Shared CV detector types for Atlas mobile.
- *
- * Helios CV lane plugs real detector implementations here;
- * Atlas ships mock detectors so UI flows work independently.
- */
-
-export type ExerciseType = 'squat' | 'pushup' | 'plank' | 'sit_to_stand';
+export type ExerciseType =
+  | 'squat'
+  | 'pushup'
+  | 'sit_to_stand'
+  | 'plank'
+  | 'lunge'
+  | 'step_up'
+  | 'glute_bridge'
+  | 'clamshell'
+  | 'bird_dog'
+  | 'dead_bug';
 
 export const EXERCISE_LABELS: Record<ExerciseType, string> = {
   squat: 'Squat',
   pushup: 'Push-up',
-  plank: 'Plank',
   sit_to_stand: 'Sit-to-Stand',
+  plank: 'Plank',
+  lunge: 'Lunge',
+  step_up: 'Step-up',
+  glute_bridge: 'Glute Bridge',
+  clamshell: 'Clamshell',
+  bird_dog: 'Bird Dog',
+  dead_bug: 'Dead Bug',
 };
 
-/** Plank is a timed hold; the others are rep-counted. */
 export const HOLD_EXERCISES = new Set<ExerciseType>(['plank']);
 
 export type ConfidenceFlag =
@@ -32,7 +40,6 @@ export const FLAG_LABELS: Record<ConfidenceFlag, string> = {
 
 export interface RepResult {
   repNumber: number;
-  /** 0–100 */
   formScore: number;
   durationMs: number;
   flags: ConfidenceFlag[];
@@ -40,11 +47,8 @@ export interface RepResult {
 
 export interface DetectorOutput {
   exerciseType: ExerciseType;
-  /** For hold exercises (plank) this is always 0; use elapsedMs for hold time. */
   repCount: number;
-  /** 0–100 rolling average over all reps; 100 when no reps yet. */
   formScore: number;
-  /** 0–1 pose confidence estimate. */
   confidence: number;
   flags: ConfidenceFlag[];
   reps: RepResult[];
@@ -53,8 +57,51 @@ export interface DetectorOutput {
 
 export interface Detector {
   readonly exerciseType: ExerciseType;
-  /** Begin detection; calls onFrame on every output update. */
   start(onFrame: (output: DetectorOutput) => void): void;
   stop(): void;
   reset(): void;
+}
+
+export type LandmarkName =
+  | 'left_shoulder'
+  | 'right_shoulder'
+  | 'left_elbow'
+  | 'right_elbow'
+  | 'left_wrist'
+  | 'right_wrist'
+  | 'left_hip'
+  | 'right_hip'
+  | 'left_knee'
+  | 'right_knee'
+  | 'left_ankle'
+  | 'right_ankle'
+  | 'nose';
+
+export interface Landmark {
+  name: LandmarkName;
+  x: number;
+  y: number;
+  z?: number;
+  visibility?: number;
+}
+
+export interface PoseLandmarks {
+  landmarks: Landmark[];
+  confidence: number;
+}
+
+export interface CameraFrame {
+  width: number;
+  height: number;
+  base64: string;
+  timestampMs: number;
+}
+
+export interface LandmarkAdapter {
+  readonly id: string;
+  estimate(frame: CameraFrame): Promise<PoseLandmarks | null>;
+}
+
+export interface FrameSource {
+  readFrame(): Promise<CameraFrame | null>;
 }

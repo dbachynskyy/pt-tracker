@@ -281,3 +281,5 @@ Behavior:
    - helios blocked -> regenerate/fix Helios readiness artifact
    - orion blocked -> rerun strict rollout/master gate and verify `tests_passed`
 4. Confirm `tests_passed: true` and all lane statuses `PASS`
+
+Contract v1: canonical lane file is artifacts/realcv-lanes-status.v1.json; alias artifacts/realcv-crosslane-status.json must be byte-identical.

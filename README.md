@@ -190,3 +190,5 @@ bash scripts/run-realcv-crosslane-orchestrator.sh
 ```
 
 Writes unified status: `artifacts/realcv-lanes-status.v1.json` and exits non-zero on any blocked lane.
+
+Canonical lane artifact: artifacts/realcv-lanes-status.v1.json (alias: artifacts/realcv-crosslane-status.json).

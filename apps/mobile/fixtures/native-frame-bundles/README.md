@@ -128,3 +128,20 @@ node scripts/provenance-attestation.mjs fixtures/native-frame-bundles/atlas-capt
 Output report: `artifacts/atlas-provenance-attestation.v1.json`
 - per exercise: `pass`, `reasons[]`, `metadata`
 - aggregate: `passed_exercises`, `failed_exercises`, `coverage_ratio`
+
+
+## Real-CV exercise coverage gate (P1)
+Hard gate command:
+```bash
+cd apps/mobile
+npm run coverage:gate
+```
+
+Reads: `artifacts/atlas-provenance-attestation.v1.json`
+Writes: `artifacts/atlas-coverage-gate.v1.json`
+
+Gate requirements:
+- exactly these 10 exercise IDs present:
+  `squat,pushup,sit_to_stand,plank,lunge,glute_bridge,knee_extension,heel_raise,calf_raise,shoulder_abduction`
+- each required exercise has `pass=true`
+- no unexpected exercise IDs

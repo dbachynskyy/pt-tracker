@@ -227,3 +227,32 @@ Output sections:
 Fallback behavior:
 - Unparseable input JSON -> `UNPARSEABLE_*` blocker with lane-specific fix guidance.
 - Partial exercise coverage (<10) -> `PARTIAL_*_COVERAGE` blocker with backfill guidance.
+
+
+## Single-command rollout flow (mandatory master gate)
+
+```bash
+bash scripts/run-realcv-rollout-gate.sh
+```
+
+This command now performs, in order:
+1. strict cross-repo gate
+2. rollout status artifact generation
+3. master readiness build (`realcv-master-readiness.json`) as **final mandatory gate**
+
+Wrapper exits non-zero unless:
+- `realcv-master-readiness.json.tests_passed == true`
+
+Console status line:
+- `REALCV_LANE_STATUS atlas=<...> helios=<...> orion=<...> blockers=<n>`
+
+## Fallback when a lane artifact is stale/missing
+
+- If Atlas lane artifact is stale/missing/unparseable:
+  - regenerate `atlas.native-readiness.v1.json`
+  - set `ATLAS_MASTER_READINESS_FILE=<fresh file>`
+- If Helios lane artifact is stale/missing/unparseable:
+  - regenerate Helios readiness artifact
+  - set `HELIOS_MASTER_READINESS_FILE=<fresh file>`
+- If Orion summary is stale:
+  - rerun `bash scripts/run-realcv-rollout-gate.sh` to refresh strict summary before master merge

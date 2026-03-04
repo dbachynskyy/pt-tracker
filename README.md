@@ -180,3 +180,5 @@ Build unified rollout truth source:
 ```bash
 node scripts/build-realcv-master-readiness.js atlas.native-readiness.v1.json artifacts/helios.native-readiness.v1.json artifacts/cross-repo-cv-regression-summary.json artifacts/realcv-master-readiness.json
 ```
+
+`run-realcv-rollout-gate.sh` now enforces master readiness as final gate and prints `REALCV_LANE_STATUS ... blockers=<n>`.

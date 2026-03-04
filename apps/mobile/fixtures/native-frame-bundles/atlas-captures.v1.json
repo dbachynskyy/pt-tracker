@@ -2,7 +2,54 @@
   "version": "atlas.native.capture.v1",
   "generatedAt": "2026-03-04T00:00:00.000Z",
   "captures": [
-    { "exercise": "squat", "source": "placeholder", "frames": [] },
+    {
+      "exercise": "squat",
+      "source": "sample:iphone15pro:front-camera",
+      "frames": [
+        {
+          "base64": "aGVsbG8=",
+          "timestampMs": 1772600000000,
+          "expectedExercise": "squat",
+          "nativePoseResult": {
+            "confidence": 0.91,
+            "landmarks": [
+              { "index": 11, "name": "left_shoulder", "x": 0.31, "y": 0.22, "visibility": 0.92 },
+              { "index": 12, "name": "right_shoulder", "x": 0.63, "y": 0.23, "visibility": 0.90 },
+              { "index": 23, "name": "left_hip", "x": 0.39, "y": 0.52, "visibility": 0.88 },
+              { "index": 24, "name": "right_hip", "x": 0.57, "y": 0.52, "visibility": 0.87 }
+            ]
+          }
+        },
+        {
+          "base64": "aGVsbG8=",
+          "timestampMs": 1772600000033,
+          "expectedExercise": "squat",
+          "nativePoseResult": {
+            "confidence": 0.89,
+            "landmarks": [
+              { "index": 25, "name": "left_knee", "x": 0.42, "y": 0.72, "visibility": 0.86 },
+              { "index": 26, "name": "right_knee", "x": 0.54, "y": 0.72, "visibility": 0.85 },
+              { "index": 27, "name": "left_ankle", "x": 0.45, "y": 0.91, "visibility": 0.84 },
+              { "index": 28, "name": "right_ankle", "x": 0.51, "y": 0.91, "visibility": 0.83 }
+            ]
+          }
+        },
+        {
+          "base64": "aGVsbG8=",
+          "timestampMs": 1772600000066,
+          "expectedExercise": "squat",
+          "nativePoseResult": {
+            "confidence": 0.93,
+            "landmarks": [
+              { "index": 11, "name": "left_shoulder", "x": 0.32, "y": 0.20, "visibility": 0.92 },
+              { "index": 12, "name": "right_shoulder", "x": 0.62, "y": 0.21, "visibility": 0.91 },
+              { "index": 23, "name": "left_hip", "x": 0.40, "y": 0.50, "visibility": 0.89 },
+              { "index": 24, "name": "right_hip", "x": 0.56, "y": 0.50, "visibility": 0.88 }
+            ]
+          }
+        }
+      ]
+    },
     { "exercise": "pushup", "source": "placeholder", "frames": [] },
     { "exercise": "sit_to_stand", "source": "placeholder", "frames": [] },
     { "exercise": "plank", "source": "placeholder", "frames": [] },

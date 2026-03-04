@@ -16,11 +16,17 @@ describe('native readiness fallback harness', () => {
     expect(artifact.exercises).toHaveLength(10);
   });
 
-  it('marks missing captures as blocked with explicit reason', () => {
+  it('produces mixed ready/blocked output with source + blocked reason', () => {
     const artifact = JSON.parse(fs.readFileSync(outPath, 'utf8'));
-    for (const ex of artifact.exercises) {
-      expect(ex.status).toBe('blocked');
-      expect(ex.reason).toBe('missing_capture_frames');
-    }
+    const squat = artifact.exercises.find((e: any) => e.exercise === 'squat');
+    const pushup = artifact.exercises.find((e: any) => e.exercise === 'pushup');
+
+    expect(squat.status).toBe('ready');
+    expect(squat.evidence_source).toContain('sample:iphone15pro');
+    expect(squat.blocked_reason).toBeNull();
+
+    expect(pushup.status).toBe('blocked');
+    expect(pushup.blocked_reason).toBe('missing_capture_frames');
+    expect(pushup.evidence_source).toBe('placeholder');
   });
 });

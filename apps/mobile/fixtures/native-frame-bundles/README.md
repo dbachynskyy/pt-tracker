@@ -1,6 +1,17 @@
 # Native Frame Bundle Schema (`atlas.native.capture.v1`)
 
-Each bundle contains exercise-labeled replay frames for fallback native readiness validation.
+Use import tool:
+
+```bash
+cd apps/mobile
+node scripts/import-native-captures.mjs /path/to/raw-captures.json fixtures/native-frame-bundles/atlas-captures.v1.json
+```
+
+## Raw input accepted by import tool
+- JSON object with `captures: []` or plain `[]`
+- each capture: `{ exercise, source?, frames[] }`
+
+## Canonical bundle schema
 
 ```json
 {
@@ -12,7 +23,7 @@ Each bundle contains exercise-labeled replay frames for fallback native readines
       "source": "camera-device-id-or-note",
       "frames": [
         {
-          "base64": "...jpeg/png bytes...",
+          "base64": "...",
           "timestampMs": 1731111111111,
           "expectedExercise": "squat",
           "nativePoseResult": {
@@ -29,6 +40,12 @@ Each bundle contains exercise-labeled replay frames for fallback native readines
 }
 ```
 
-Notes:
-- `nativePoseResult` and `nativeError` are optional replay controls for deterministic contract testing.
-- For missing captures, leave `frames: []`; readiness artifact will mark `blocked` with `missing_capture_frames`.
+## Strict validation
+Import + readiness generation fail fast for:
+- invalid exercise labels
+- malformed base64
+- invalid timestamps
+- frame `expectedExercise` mismatch
+- invalid native pose result shape
+
+Missing captures are allowed only as explicit placeholders (`frames: []`) and will be marked blocked in readiness artifact.

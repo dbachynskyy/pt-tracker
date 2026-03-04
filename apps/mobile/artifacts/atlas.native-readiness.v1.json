@@ -1,77 +1,87 @@
 {
   "version": "atlas.native-readiness.v1",
-  "generatedAt": "2026-03-04T06:41:35.518Z",
+  "generatedAt": "2026-03-04T07:11:19.241Z",
   "sourceBundle": "atlas-captures.v1.json",
   "exercises": [
     {
       "exercise": "squat",
-      "status": "blocked",
-      "reason": "missing_capture_frames",
-      "frameCount": 0,
-      "successFrames": 0
+      "status": "ready",
+      "blocked_reason": null,
+      "frameCount": 3,
+      "successFrames": 3,
+      "evidence_source": "sample:iphone15pro:front-camera"
     },
     {
       "exercise": "pushup",
       "status": "blocked",
-      "reason": "missing_capture_frames",
+      "blocked_reason": "missing_capture_frames",
       "frameCount": 0,
-      "successFrames": 0
+      "successFrames": 0,
+      "evidence_source": "placeholder"
     },
     {
       "exercise": "sit_to_stand",
       "status": "blocked",
-      "reason": "missing_capture_frames",
+      "blocked_reason": "missing_capture_frames",
       "frameCount": 0,
-      "successFrames": 0
+      "successFrames": 0,
+      "evidence_source": "placeholder"
     },
     {
       "exercise": "plank",
       "status": "blocked",
-      "reason": "missing_capture_frames",
+      "blocked_reason": "missing_capture_frames",
       "frameCount": 0,
-      "successFrames": 0
+      "successFrames": 0,
+      "evidence_source": "placeholder"
     },
     {
       "exercise": "lunge",
       "status": "blocked",
-      "reason": "missing_capture_frames",
+      "blocked_reason": "missing_capture_frames",
       "frameCount": 0,
-      "successFrames": 0
+      "successFrames": 0,
+      "evidence_source": "placeholder"
     },
     {
       "exercise": "glute_bridge",
       "status": "blocked",
-      "reason": "missing_capture_frames",
+      "blocked_reason": "missing_capture_frames",
       "frameCount": 0,
-      "successFrames": 0
+      "successFrames": 0,
+      "evidence_source": "placeholder"
     },
     {
       "exercise": "knee_extension",
       "status": "blocked",
-      "reason": "missing_capture_frames",
+      "blocked_reason": "missing_capture_frames",
       "frameCount": 0,
-      "successFrames": 0
+      "successFrames": 0,
+      "evidence_source": "placeholder"
     },
     {
       "exercise": "heel_raise",
       "status": "blocked",
-      "reason": "missing_capture_frames",
+      "blocked_reason": "missing_capture_frames",
       "frameCount": 0,
-      "successFrames": 0
+      "successFrames": 0,
+      "evidence_source": "placeholder"
     },
     {
       "exercise": "calf_raise",
       "status": "blocked",
-      "reason": "missing_capture_frames",
+      "blocked_reason": "missing_capture_frames",
       "frameCount": 0,
-      "successFrames": 0
+      "successFrames": 0,
+      "evidence_source": "placeholder"
     },
     {
       "exercise": "shoulder_abduction",
       "status": "blocked",
-      "reason": "missing_capture_frames",
+      "blocked_reason": "missing_capture_frames",
       "frameCount": 0,
-      "successFrames": 0
+      "successFrames": 0,
+      "evidence_source": "placeholder"
     }
   ]
 }

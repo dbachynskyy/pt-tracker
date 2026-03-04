@@ -245,3 +245,29 @@ Artifact shape highlights:
 `SessionScreen` now wires `ReadinessArtifactPipeline.endSession(...)` at session end.
 If `ORION_READINESS_ARTIFACT_PATH` is set, the Orion JSON artifact is written automatically.
 Regardless of path availability, an in-memory session snapshot is always added to the batch aggregator.
+
+## Orion Quality Gate Fields (`orion.readiness.v1`)
+
+Per exercise, artifact now includes a `quality` block:
+
+- `sample_count` — number of confidence samples observed.
+- `confidence_p50` — median confidence over observed frames.
+- `confidence_p90` — p90 confidence over observed frames.
+- `rep_signal_present` — true if any rep/hold signal was emitted.
+- `status_reason` — terminal readiness status/reason (`READY`, `NO_SIGNAL`, `INSUFFICIENT_ROM`, etc.).
+- `gate_pass` — deterministic gate verdict.
+- `gate_fail_reasons[]` — machine-readable fail reasons.
+
+Current acceptance thresholds for gate pass:
+
+- `sample_count > 0`
+- `confidence_p50 > 0`
+- `confidence_p90 > 0`
+- `rep_signal_present = true`
+- `status_reason = READY`
+
+Validator enforces:
+
+- all 10 canonical exercises present,
+- each exercise has required quality fields,
+- schema version is `orion.readiness.v1`.

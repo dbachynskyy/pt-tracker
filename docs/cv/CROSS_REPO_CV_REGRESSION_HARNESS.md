@@ -283,3 +283,27 @@ Behavior:
 4. Confirm `tests_passed: true` and all lane statuses `PASS`
 
 Contract v1: canonical lane file is artifacts/realcv-lanes-status.v1.json; alias artifacts/realcv-crosslane-status.json must be byte-identical.
+
+
+## Top-level real-CV release gate
+
+```bash
+ATLAS_V2_READINESS_FILE=atlas.native-readiness.v1.json \
+HELIOS_SUMMARY_FILE=artifacts/cross-repo-cv-regression-summary.json \
+ORION_LANES_FILE=artifacts/realcv-lanes-status.v1.json \
+bash scripts/run-realcv-release-gate.sh
+```
+
+Outputs:
+- `artifacts/realcv-release-readiness.v1.json`
+
+Fields:
+- `exercise_coverage_10of10`
+- `lane_statuses`
+- `blocker_catalog`
+- `go_no_go`
+
+CI line output:
+- `REALCV_RELEASE_READINESS go_no_go=<...> blockers=<n> lanes=<...>`
+
+Fails non-zero on any blocker.

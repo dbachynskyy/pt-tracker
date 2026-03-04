@@ -31,6 +31,13 @@ const BLOCKER_FALLBACKS = {
   ],
 };
 
+const BLOCKER_POLICY = {
+  AUTH_BLOCKER: { severity: 'hard', action: 'REAUTH', rank: 1 },
+  CREDITS_BLOCKER: { severity: 'hard', action: 'TOP_UP_CREDITS', rank: 2 },
+  RATE_LIMIT_BLOCKER: { severity: 'soft', action: 'BACKOFF_RETRY', rank: 3 },
+  QUALITY_BLOCKER: { severity: 'soft', action: 'DATA_RECAPTURE', rank: 4 },
+};
+
 function fail(msg, code = 2) {
   console.error(`[exercise-readiness] FAIL: ${msg}`);
   process.exit(code);
@@ -50,12 +57,24 @@ function detectBlockers(text) {
   return out;
 }
 
+function pickPlan(blockers) {
+  if (!blockers.length) return { severity: 'soft', recommended_action: 'NONE' };
+  const ordered = [...blockers].sort((a, b) => (BLOCKER_POLICY[a]?.rank ?? 99) - (BLOCKER_POLICY[b]?.rank ?? 99));
+  const top = ordered[0];
+  return {
+    severity: BLOCKER_POLICY[top]?.severity ?? 'soft',
+    recommended_action: BLOCKER_POLICY[top]?.action ?? 'NONE',
+  };
+}
+
 const inPath = process.argv[2];
 const outPath = process.argv[3] || path.resolve('artifacts/helios-exercise-readiness.v1.json');
 const evidencePath = process.argv[4];
 const evidenceOutPath = process.argv[5] || path.resolve('artifacts/helios-exercise-readiness-evidence.v1.json');
+const fallbackPlanOutPath = process.argv[6] || path.resolve('artifacts/helios-exercise-fallback-plan.v1.json');
+const markdownOutPath = process.argv[7] || path.resolve('artifacts/helios-exercise-readiness-summary.md');
 if (!inPath) {
-  fail('Usage: node apps/mobile/scripts/emit-exercise-readiness-matrix.js <orion.readiness.v1.json> [out.json] [evidence.json|log.txt] [evidenceOut.json]', 64);
+  fail('Usage: node apps/mobile/scripts/emit-exercise-readiness-matrix.js <orion.readiness.v1.json> [out.json] [evidence.json|log.txt] [evidenceOut.json] [fallbackPlanOut.json] [markdownOut.md]', 64);
 }
 
 const report = readJson(inPath);
@@ -112,6 +131,7 @@ for (const srcId of SRC_IDS) {
     evidence: (evidenceByBlocker[b] && evidenceByBlocker[b][0]) || { source: 'derived_status', code_token: 'NONE', timestamp: undefined },
     fallback_options: BLOCKER_FALLBACKS[b] || [],
   }));
+  const plan = pickPlan(blockerArr);
 
   exercises.push({
     exercise: outId,
@@ -120,6 +140,8 @@ for (const srcId of SRC_IDS) {
     fallback_options,
     checks,
     blocker_catalog,
+    severity: plan.severity,
+    recommended_action: plan.recommended_action,
   });
 }
 
@@ -147,10 +169,43 @@ const evidenceArtifact = {
   })),
 };
 
+const fallbackPlan = {
+  schemaVersion: 'helios-exercise-fallback-plan.v1',
+  threshold_profile_version: report.threshold_profile_version,
+  exercises: exercises.map((e) => ({
+    exercise: e.exercise,
+    severity: e.severity,
+    recommended_action: e.recommended_action,
+    blockers: e.blockers,
+    fallback_options: e.fallback_options,
+  })),
+};
+
+const hardCount = fallbackPlan.exercises.filter((e) => e.severity === 'hard').length;
+const softCount = fallbackPlan.exercises.filter((e) => e.severity === 'soft').length;
+const markdown = [
+  '# Helios Exercise Readiness Summary',
+  '',
+  '## Fallback Summary',
+  `- Hard severity exercises: ${hardCount}`,
+  `- Soft severity exercises: ${softCount}`,
+  `- Actions: ${[...new Set(fallbackPlan.exercises.map((e) => e.recommended_action))].join(', ')}`,
+  '',
+  '## Per-exercise Plan',
+  ...fallbackPlan.exercises.map((e) => `- ${e.exercise}: ${e.severity} -> ${e.recommended_action} (${e.blockers.join(', ') || 'NONE'})`),
+  '',
+].join('\n');
+
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
 fs.mkdirSync(path.dirname(evidenceOutPath), { recursive: true });
+fs.mkdirSync(path.dirname(fallbackPlanOutPath), { recursive: true });
+fs.mkdirSync(path.dirname(markdownOutPath), { recursive: true });
 fs.writeFileSync(outPath, JSON.stringify(matrix, null, 2) + '\n', 'utf8');
 fs.writeFileSync(evidenceOutPath, JSON.stringify(evidenceArtifact, null, 2) + '\n', 'utf8');
+fs.writeFileSync(fallbackPlanOutPath, JSON.stringify(fallbackPlan, null, 2) + '\n', 'utf8');
+fs.writeFileSync(markdownOutPath, markdown, 'utf8');
 console.log(`[exercise-readiness] PASS: emitted ${exercises.length} exercise rows`);
 console.log(`[exercise-readiness] artifact: ${path.resolve(outPath)}`);
 console.log(`[exercise-readiness] evidence: ${path.resolve(evidenceOutPath)}`);
+console.log(`[exercise-readiness] fallback-plan: ${path.resolve(fallbackPlanOutPath)}`);
+console.log(`[exercise-readiness] markdown: ${path.resolve(markdownOutPath)}`);

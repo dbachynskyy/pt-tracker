@@ -17,7 +17,11 @@ function setSource(frame: PoseFrame, source: 'real' | 'mock' | 'disconnected'): 
 
 describe('StabilizedRepCounter calibration', () => {
   it('accepts calibration when ROM range reaches threshold', () => {
-    const counter = new StabilizedRepCounter(new AlwaysRepAnalyzer(), 5, { requiredFrames: 12, maxFrames: 30 });
+    const counter = new StabilizedRepCounter(new AlwaysRepAnalyzer(), 5, {
+      requiredFrames: 12,
+      maxFrames: 30,
+      criteriaByExercise: { squat: { readyWindowMs: 200 } },
+    });
     for (let i = 0; i < 12; i++) {
       const angle = i < 6 ? 170 - i * 10 : 120 + (i - 6) * 10;
       counter.processFrame(setSource(squatFrame(angle), 'real'), i * 33);

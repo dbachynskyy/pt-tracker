@@ -281,3 +281,30 @@ Artifact field `threshold_profile_version` is emitted in every `orion.readiness.
 Validator enforces both:
 - complete 10-exercise threshold coverage,
 - complete 10-exercise artifact quality payload.
+
+## CI Readiness Gate Command
+
+Run in CI (from repo root):
+
+- `npm --workspace apps/mobile run check:readiness-gate -- <path/to/orion.readiness.json> <path/to/gate-summary.json>`
+
+Equivalent direct command:
+
+- `node apps/mobile/scripts/check-readiness-gate.js <artifact.json> <summary.json>`
+
+Exit behavior:
+
+- `0` → all 10 exercise gates pass.
+- non-zero → gate failure.
+
+Expected failure output examples:
+
+- `[readiness-gate] FAIL: missing threshold_profile_version`
+- `[readiness-gate] FAIL: missing threshold config for squat`
+- `[readiness-gate] FAIL: 1 exercise gate(s) failed`
+- ` - pushup: NO_REP_SIGNAL,STATUS_READY`
+
+Compact summary artifact emitted by script:
+
+- schema: `orion.readiness.gate.v1`
+- fields per row: `exercise`, `gate_pass`, `fail_reasons`, `threshold_profile_version`

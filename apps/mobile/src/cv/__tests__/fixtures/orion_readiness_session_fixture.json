@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "orion.readiness.v1",
+  "generatedAt": "1970-01-01T00:00:00.000Z",
+  "totals": {
+    "sessions": 1,
+    "exercisesObserved": 10,
+    "failures": 2
+  },
+  "byExercise": {
+    "squat": {
+      "failures": 1,
+      "reasons": {
+        "NO_SIGNAL": 1
+      }
+    },
+    "pushup": {
+      "failures": 1,
+      "reasons": {
+        "INSUFFICIENT_ROM": 1
+      }
+    },
+    "sit_to_stand": {
+      "failures": 0,
+      "reasons": {}
+    },
+    "lunge": {
+      "failures": 0,
+      "reasons": {}
+    },
+    "calf_raise": {
+      "failures": 0,
+      "reasons": {}
+    },
+    "glute_bridge": {
+      "failures": 0,
+      "reasons": {}
+    },
+    "shoulder_abduction": {
+      "failures": 0,
+      "reasons": {}
+    },
+    "heel_raise": {
+      "failures": 0,
+      "reasons": {}
+    },
+    "knee_extension": {
+      "failures": 0,
+      "reasons": {}
+    },
+    "plank_hold": {
+      "failures": 0,
+      "reasons": {}
+    }
+  }
+}

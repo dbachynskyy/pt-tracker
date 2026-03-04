@@ -164,3 +164,5 @@ bash scripts/run-cross-repo-cv-regression-harness.sh fixtures
 ```
 
 Manual Actions workflow for release gate: `.github/workflows/cross-repo-live-strict-gate.yml` (workflow_dispatch, publishes full/summary/trend artifacts).
+
+Strict live gate now enforces readiness artifact presence + 10-exercise completeness (`MISSING_READINESS_ARTIFACT`, `UNPARSEABLE_READINESS_ARTIFACT`, `MISSING_READINESS_EXERCISE`).

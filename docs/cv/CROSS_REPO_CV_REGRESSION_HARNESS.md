@@ -166,3 +166,18 @@ Published artifacts:
 - full: `cross-repo-cv-regression.{json,md}`
 - summary: `cross-repo-cv-regression-summary.{json,md}`
 - trend diff: `cross-repo-cv-regression-trend.{json,md}`
+
+
+## Strict-mode readiness requirements
+
+In `live --strict-gate`, the harness now fails if:
+- Atlas readiness artifact is absent or unparseable
+- Helios readiness artifact is absent or unparseable
+- Any of the 10 canonical exercises is missing from either readiness artifact
+
+New blocker codes:
+- `MISSING_READINESS_ARTIFACT`
+- `UNPARSEABLE_READINESS_ARTIFACT`
+- `MISSING_READINESS_EXERCISE`
+
+Each blocker in summary JSON includes a `fallback` suggestion.

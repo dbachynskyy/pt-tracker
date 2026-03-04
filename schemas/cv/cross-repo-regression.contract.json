@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "requiredExerciseCount": 10,
+  "exercises": [
+    { "id": "squat", "analyzerClass": "SquatAnalyzer", "testSignals": ["squat.test.ts"] },
+    { "id": "pushup", "analyzerClass": "PushupAnalyzer", "testSignals": ["pushup.test.ts"] },
+    { "id": "sit_to_stand", "analyzerClass": "SitToStandAnalyzer", "testSignals": ["sitToStand.test.ts"] },
+    { "id": "plank", "analyzerClass": "PlankAnalyzer", "testSignals": ["plank.test.ts"] },
+    { "id": "lunge", "analyzerClass": "LungeAnalyzer", "testSignals": ["lunge.test.ts"] },
+    { "id": "glute_bridge", "analyzerClass": "GluteBridgeAnalyzer", "testSignals": ["gluteBridge.test.ts"] },
+    { "id": "knee_extension", "analyzerClass": "KneeExtensionAnalyzer", "testSignals": ["kneeExtension.test.ts"] },
+    { "id": "heel_raise", "analyzerClass": "HeelRaiseAnalyzer", "testSignals": ["heelRaise.test.ts"] },
+    { "id": "calf_raise", "analyzerClass": "CalfRaiseAnalyzer", "testSignals": ["calfRaise.test.ts"] },
+    { "id": "shoulder_abduction", "analyzerClass": "ShoulderAbductionAnalyzer", "testSignals": ["shoulderAbduction.test.ts"] }
+  ]
+}

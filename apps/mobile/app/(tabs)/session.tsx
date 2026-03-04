@@ -14,6 +14,8 @@ import { CVStatsCard } from '../../src/components/CVStatsCard';
 import { ExerciseSelector } from '../../src/components/ExerciseSelector';
 import { createDetector, isMockCvEnabled } from '../../src/cv/mockDetector';
 import { createExpoCameraFrameSource, registerFrameSource } from '../../src/cv/frameSource';
+import { emitCvEvent } from '../../src/cv/instrumentation';
+import { getPoseProviderState } from '../../src/cv/poseProvider';
 import { Detector, DetectorOutput, ExerciseType, EXERCISE_LABELS } from '../../src/cv/types';
 
 type Phase = 'idle' | 'active' | 'done';
@@ -26,6 +28,9 @@ export default function SessionScreen() {
   const [detectorOutput, setDetectorOutput] = useState<DetectorOutput | null>(null);
   const [finalOutput, setFinalOutput] = useState<DetectorOutput | null>(null);
   const [cvUnavailable, setCvUnavailable] = useState(false);
+  const [permissionDenied, setPermissionDenied] = useState(false);
+  const [providerUnavailable, setProviderUnavailable] = useState(false);
+  const [lowConfidence, setLowConfidence] = useState(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   const detectorRef = useRef<Detector | null>(null);
@@ -33,13 +38,18 @@ export default function SessionScreen() {
   const mockEnabled = useMemo(() => isMockCvEnabled(), []);
 
   const ensureCameraPermission = useCallback(async () => {
-    if (cameraPermission?.granted) return true;
+    if (cameraPermission?.granted) {
+      setPermissionDenied(false);
+      return true;
+    }
 
     const permissionResponse = cameraPermission
       ? await requestCameraPermission()
       : await Camera.requestCameraPermissionsAsync();
 
-    return permissionResponse.status === PermissionStatus.GRANTED;
+    const granted = permissionResponse.status === PermissionStatus.GRANTED;
+    setPermissionDenied(!granted);
+    return granted;
   }, [cameraPermission, requestCameraPermission]);
 
   const startDetector = useCallback(
@@ -47,9 +57,11 @@ export default function SessionScreen() {
       registerFrameSource(createExpoCameraFrameSource(cameraRef));
       const det = createDetector(type);
       detectorRef.current = det;
+      emitCvEvent({ type: 'cv_detector_started', exerciseType: type });
       det.start((output) => {
         const disconnected = !mockEnabled && output.confidence === 0;
         setCvUnavailable(disconnected);
+        setLowConfidence(!disconnected && output.confidence > 0 && output.confidence < 0.35);
         setDetectorOutput(output);
       });
     },
@@ -57,9 +69,11 @@ export default function SessionScreen() {
   );
 
   const stopDetector = useCallback(() => {
+    const activeExercise = detectorRef.current?.exerciseType;
     detectorRef.current?.stop();
     detectorRef.current = null;
     registerFrameSource(null);
+    if (activeExercise) emitCvEvent({ type: 'cv_detector_stopped', exerciseType: activeExercise });
   }, []);
 
   const startSession = useCallback(async () => {
@@ -69,6 +83,13 @@ export default function SessionScreen() {
       return;
     }
 
+    const providerState = getPoseProviderState();
+    if (providerState.status !== 'ready') {
+      setProviderUnavailable(true);
+      return;
+    }
+
+    setProviderUnavailable(false);
     setLoading(true);
     try {
       const s = await api.createSession({});
@@ -76,6 +97,7 @@ export default function SessionScreen() {
       setDetectorOutput(null);
       setFinalOutput(null);
       setCvUnavailable(false);
+      setLowConfidence(false);
       setPhase('active');
       startDetector(selectedExercise);
     } catch (e: unknown) {
@@ -110,6 +132,8 @@ export default function SessionScreen() {
     setDetectorOutput(null);
     setFinalOutput(null);
     setCvUnavailable(false);
+    setProviderUnavailable(false);
+    setLowConfidence(false);
   }, [stopDetector]);
 
   return (
@@ -127,6 +151,16 @@ export default function SessionScreen() {
             >
               <Text style={styles.btnText}>Allow Camera</Text>
             </TouchableOpacity>
+          )}
+          {permissionDenied && (
+            <View style={styles.cvUnavailable} testID="permission-denied">
+              <Text style={styles.cvUnavailableText}>Camera permission denied</Text>
+            </View>
+          )}
+          {providerUnavailable && (
+            <View style={styles.cvUnavailable} testID="provider-unavailable">
+              <Text style={styles.cvUnavailableText}>Pose provider unavailable on this build/device</Text>
+            </View>
           )}
           <Text style={styles.subtitle}>Ready to start your PT session?</Text>
           <TouchableOpacity
@@ -153,7 +187,14 @@ export default function SessionScreen() {
           {cvUnavailable ? (
             <View style={styles.cvUnavailable} testID="cv-unavailable"><Text style={styles.cvUnavailableText}>Pose landmarks unavailable (adapter not connected)</Text></View>
           ) : detectorOutput ? (
-            <CVStatsCard output={detectorOutput} />
+            <>
+              {lowConfidence && (
+                <View style={styles.cvWarning} testID="low-confidence-warning">
+                  <Text style={styles.cvWarningText}>Low confidence — adjust camera angle/lighting</Text>
+                </View>
+              )}
+              <CVStatsCard output={detectorOutput} />
+            </>
           ) : (
             <View style={styles.detectorWaiting} testID="detector-waiting"><ActivityIndicator color="#2563EB" /><Text style={styles.detectorWaitingText}>Detecting…</Text></View>
           )}
@@ -194,8 +235,10 @@ const styles = StyleSheet.create({
   cameraPreview: { width: '100%', aspectRatio: 3 / 4, borderRadius: 12, overflow: 'hidden', marginBottom: 12 },
   detectorWaiting: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginVertical: 20 },
   detectorWaitingText: { color: '#6B7280', fontSize: 14 },
-  cvUnavailable: { marginVertical: 20, padding: 12, borderRadius: 10, backgroundColor: '#FEF2F2', alignItems: 'center' },
+  cvUnavailable: { marginVertical: 12, padding: 12, borderRadius: 10, backgroundColor: '#FEF2F2', alignItems: 'center' },
   cvUnavailableText: { color: '#B91C1C', fontSize: 14, fontWeight: '600' },
+  cvWarning: { marginVertical: 8, padding: 10, borderRadius: 10, backgroundColor: '#FEF3C7', alignItems: 'center' },
+  cvWarningText: { color: '#92400E', fontSize: 13, fontWeight: '600' },
   doneText: { fontSize: 24, fontWeight: '700', color: '#059669', marginBottom: 8 },
   startBtn: { backgroundColor: '#2563EB', paddingHorizontal: 40, paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 8 },
   permissionBtn: { backgroundColor: '#1D4ED8', paddingHorizontal: 40, paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginTop: 8 },

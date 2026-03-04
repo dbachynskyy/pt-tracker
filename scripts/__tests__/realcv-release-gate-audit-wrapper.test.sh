@@ -14,7 +14,10 @@ import json
 ex=['squat','pushup','sit_to_stand','plank','lunge','glute_bridge','knee_extension','heel_raise','calf_raise','shoulder_abduction']
 json.dump({'exercises':[{'exercise_id':x,'coverage_pass':True} for x in ex]}, open('artifacts/atlas-coverage-gate.v1.json','w'))
 json.dump({'exercises':[{'exercise_id':x,'helios_gate_pass':True} for x in ex]}, open('artifacts/helios-exercise-readiness.v1.json','w'))
-json.dump({'exercises':[{'exercise_id':x,'evidence':'ok'} for x in ex]}, open('artifacts/helios-exercise-readiness-evidence.v1.json','w'))
+json.dump({'exercises':[{'exercise_id':x,'evidence':'ok','real_camera_evidence':True} for x in ex]}, open('artifacts/helios-exercise-readiness-evidence.v1.json','w'))
+json.dump({'exercises':[{'exercise_id':x,'normalized':True} for x in ex]}, open('artifacts/atlas-normalized.v1.json','w'))
+json.dump({'exercises':[{'exercise_id':x,'pack_ready':True} for x in ex]}, open('artifacts/atlas-pack-output.v1.json','w'))
+json.dump({'plan':'ok'}, open('artifacts/helios-fallback-plan.v1.json','w'))
 PY
 
 # pass

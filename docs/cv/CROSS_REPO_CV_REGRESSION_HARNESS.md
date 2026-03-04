@@ -402,3 +402,7 @@ Decision field: `release_decision` (`GO|HOLD`) with ordered blockers.
 CI token: `REALCV_AUDIT_BUNDLE[v1] decision=<GO|HOLD> blockers=<k>`.
 Wrapper fails on HOLD unless `ALLOW_REALCV_RELEASE_HOLD_OVERRIDE=ALLOW`.
 Missing artifact paths are diagnosed in `diagnostics.path_discovery` + `diagnostics.missing_artifacts`.
+
+
+Exercise decision matrix (hard 10/10 gate): `artifacts/realcv-exercise-decision-matrix.v1.json` + `.md`.
+CI token: `REALCV_EX_DECISION[v1] pass=<n>/10 release=<PASS|FAIL>`.

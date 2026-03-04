@@ -206,3 +206,5 @@ Release gate v2 emits version-tagged CI line `REALCV_RELEASE_READINESS[v2] ...` 
 Release gate also writes per-exercise table: `artifacts/realcv-10ex-status.v1.json` (10 fixed exercises).
 
 Release wrapper summary CI tokens: `REALCV_10EX_SUMMARY[v1] overall_pass=<n>/10` and `REALCV_10EX_BLOCKERS[v1] count=<k>`.
+
+Final cross-lane contract token: `REALCV_FINAL_CONTRACT[v1] pass=<n>/10 release=<PASS|FAIL>`.

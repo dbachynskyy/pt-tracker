@@ -358,3 +358,22 @@ Deterministic CI log tokens:
 - `REALCV_10EX_BLOCKERS[v1] count=<k>`
 
 Wrapper fails on any red exercise unless `ALLOW_PARTIAL_REALCV=1`.
+
+
+### Final contract artifact (cross-lane)
+
+```bash
+node scripts/build-realcv-final-contract-report.js   artifacts/atlas-coverage-gate.v1.json   artifacts/helios-exercise-readiness.v1.json   artifacts/helios-exercise-readiness-evidence.v1.json   artifacts/realcv-10ex-summary.v1.json   artifacts/realcv-final-contract.v1.json   artifacts/realcv-final-contract.md
+```
+
+CI token:
+- `REALCV_FINAL_CONTRACT[v1] pass=<n>/10 release=<PASS|FAIL>`
+
+If upstream artifact mismatch occurs:
+- atlas gate missing/malformed -> `MISSING_ATLAS_COVERAGE_GATE`
+- helios readiness missing/malformed -> `MISSING_HELIOS_READINESS`
+- orion summary missing/malformed -> `MISSING_ORION_10EX_SUMMARY`
+
+Compatibility fallback:
+- run orchestrator + release wrapper first to regenerate Orion artifacts,
+- or provide mapped compatibility files into expected artifact paths before final contract step.

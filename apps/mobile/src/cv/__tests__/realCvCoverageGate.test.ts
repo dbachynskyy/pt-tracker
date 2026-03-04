@@ -30,6 +30,8 @@ function bundleAllValid() {
       source: `real-device-${exercise}`,
       frames: [
         { base64: 'aGVsbG8=', timestampMs: 1772600000000 + i * 1000, expectedExercise: exercise, rep_count: 1, confidence: 0.91, nativePoseResult: { confidence: 0.91, landmarks: [{ index: 11, x: 0.2, y: 0.2 }, { index: 12, x: 0.3, y: 0.2 }, { index: 23, x: 0.4, y: 0.5 }, { index: 24, x: 0.5, y: 0.5 }] } },
+        { base64: 'aGVsbG8=', timestampMs: 1772600000033 + i * 1000, expectedExercise: exercise, rep_count: 2, confidence: 0.88, nativePoseResult: { confidence: 0.88, landmarks: [{ index: 11, x: 0.2, y: 0.2 }, { index: 12, x: 0.3, y: 0.2 }, { index: 23, x: 0.4, y: 0.5 }, { index: 24, x: 0.5, y: 0.5 }] } },
+        { base64: 'aGVsbG8=', timestampMs: 1772600000066 + i * 1000, expectedExercise: exercise, rep_count: 3, confidence: 0.85, nativePoseResult: { confidence: 0.85, landmarks: [{ index: 11, x: 0.2, y: 0.2 }, { index: 12, x: 0.3, y: 0.2 }, { index: 23, x: 0.4, y: 0.5 }, { index: 24, x: 0.5, y: 0.5 }] } },
       ],
     })),
   };

@@ -163,3 +163,19 @@ node scripts/check-realcv-coverage.mjs \
   fixtures/native-frame-bundles/atlas-captures.v1.json \
   artifacts/atlas-capture-validation.v1.json
 ```
+
+
+## Real capture quality gate
+Validate real-camera pack thresholds and emit artifact:
+```bash
+cd apps/mobile
+npm run realcv:pack:gate
+```
+
+Artifact: `artifacts/atlas-real-capture-pack-gate.v1.json`
+Checks:
+- required metadata present (`capture_id`, `device_id`, `ts`, `exercise_id`, `source`)
+- per-exercise `>=3` frames
+- per-exercise `>=2` `rep_count` observations
+- confidence distribution floor (>=0.5 in >=70% of frames)
+- at least 2 distinct `device_id` values across pack

@@ -9,6 +9,33 @@ const EXERCISES = [
 const VOL_THRESHOLD = Number(process.env.HELIOS_STABILITY_VOL_THRESHOLD || 15);
 const FLIP_WEIGHT = Number(process.env.HELIOS_STABILITY_FLIP_WEIGHT || 50);
 
+const BLOCKER_FALLBACKS = {
+  AUTH_BLOCKER: [
+    'Use fixture mode for deterministic CV validation',
+    'Replay cached readiness bundle without remote auth',
+    'Defer upload gate and run local non-upload checks',
+  ],
+  CREDITS_BLOCKER: [
+    'Switch to fixture mode and dry-run validation',
+    'Replay last cached successful readiness artifact',
+    'Defer quota-bound upload checks and run local checks',
+  ],
+  RATE_LIMIT_BLOCKER: [
+    'Use cached bundle replay to avoid repeated API calls',
+    'Backoff and retry in next lane slot',
+    'Run non-upload readiness checks while quota cools down',
+  ],
+};
+
+function detectBlockers(text) {
+  const t = String(text || '').toLowerCase();
+  const out = [];
+  if (t.includes('auth') || t.includes('unauthorized') || t.includes('forbidden') || t.includes('401') || t.includes('403')) out.push('AUTH_BLOCKER');
+  if (t.includes('credit') || t.includes('quota exceeded') || t.includes('insufficient funds') || t.includes('payment required') || t.includes('402')) out.push('CREDITS_BLOCKER');
+  if (t.includes('rate') || t.includes('429') || t.includes('too many requests') || t.includes('throttle')) out.push('RATE_LIMIT_BLOCKER');
+  return out;
+}
+
 function fail(msg, code = 2) {
   console.error(`[readiness-stability] FAIL: ${msg}`);
   process.exit(code);
@@ -51,7 +78,7 @@ if (!fs.existsSync(historyPath)) fail(`missing history file: ${historyPath}`, 5)
 const history = normalizeHistory(readJson(historyPath));
 if (history.length < 2) fail('history must contain at least 2 summaries', 65);
 
-const series = Object.fromEntries(EXERCISES.map((e) => [e, { scores: [], passes: [] }]))
+const series = Object.fromEntries(EXERCISES.map((e) => [e, { scores: [], passes: [], statuses: [] }]))
 for (const item of history) {
   const m = toMap(item);
   for (const e of EXERCISES) {
@@ -60,6 +87,7 @@ for (const item of history) {
     const score = typeof row.quality_score === 'number' ? row.quality_score : Math.max(0, 100 - ((row.fail_reasons || []).length * 20));
     series[e].scores.push(score);
     series[e].passes.push(!!row.gate_pass);
+    series[e].statuses.push(`${(row.fail_reasons || []).join(' ')} ${row.gate_pass ? 'PASS' : 'FAIL'}`);
   }
 }
 
@@ -89,6 +117,9 @@ for (const e of EXERCISES) {
   });
 }
 
+const blockerSet = new Set();
+for (const e of EXERCISES) for (const st of series[e].statuses) for (const b of detectBlockers(st)) blockerSet.add(b);
+
 const summary = {
   schemaVersion: 'helios-stability-summary.v1',
   volatility_threshold: VOL_THRESHOLD,
@@ -96,6 +127,8 @@ const summary = {
   source_history_path: path.resolve(historyPath),
   exercises,
   severe_instability_incidents: severe_incidents,
+  blocker_catalog: [...blockerSet],
+  fallback_options: [...new Set([...blockerSet].flatMap((b) => BLOCKER_FALLBACKS[b] || []))],
 };
 
 fs.mkdirSync(path.dirname(outPath), { recursive: true });

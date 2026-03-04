@@ -21,6 +21,33 @@ const READINESS_THRESHOLDS = {
   plank_hold: { minSamples: 1, minConfidenceP50: 0.6, minConfidenceP90: 0.7, requireRepSignal: true, allowedStatus: ['READY'] },
 };
 
+const BLOCKER_FALLBACKS = {
+  AUTH_BLOCKER: [
+    'Use fixture mode for deterministic CV validation',
+    'Replay cached readiness bundle without remote auth',
+    'Defer upload gate and run local non-upload checks',
+  ],
+  CREDITS_BLOCKER: [
+    'Switch to fixture mode and dry-run validation',
+    'Replay last cached successful readiness artifact',
+    'Defer quota-bound upload checks and run local checks',
+  ],
+  RATE_LIMIT_BLOCKER: [
+    'Use cached bundle replay to avoid repeated API calls',
+    'Backoff and retry in next lane slot',
+    'Run non-upload readiness checks while quota cools down',
+  ],
+};
+
+function detectBlockers(text) {
+  const t = String(text || '').toLowerCase();
+  const out = [];
+  if (t.includes('auth') || t.includes('unauthorized') || t.includes('forbidden') || t.includes('401') || t.includes('403')) out.push('AUTH_BLOCKER');
+  if (t.includes('credit') || t.includes('quota exceeded') || t.includes('insufficient funds') || t.includes('payment required') || t.includes('402')) out.push('CREDITS_BLOCKER');
+  if (t.includes('rate') || t.includes('429') || t.includes('too many requests') || t.includes('throttle')) out.push('RATE_LIMIT_BLOCKER');
+  return out;
+}
+
 function fail(msg, code = 2) {
   console.error(`[readiness-gate] FAIL: ${msg}`);
   process.exit(code);
@@ -51,9 +78,12 @@ const summary = {
   schemaVersion: 'orion.readiness.gate.v1',
   threshold_profile_version: report.threshold_profile_version,
   exercises: [],
+  blocker_catalog: [],
+  fallback_options: [],
 };
 
 let failures = 0;
+const blockers = new Set();
 for (const ex of EXERCISES) {
   const row = report.byExercise[ex];
   if (!row) fail(`missing exercise in artifact: ${ex}`);
@@ -71,6 +101,10 @@ for (const ex of EXERCISES) {
   if (t.requireRepSignal && !q.rep_signal_present) reasons.push('NO_REP_SIGNAL');
   if (!t.allowedStatus.includes(q.status_reason)) reasons.push(`STATUS_${q.status_reason}`);
 
+  for (const b of detectBlockers(`${q.status_reason} ${(row.reasons && Object.keys(row.reasons).join(' ')) || ''} ${reasons.join(' ')}`)) {
+    blockers.add(b);
+  }
+
   const gatePass = reasons.length === 0;
   if (!gatePass) failures++;
   summary.exercises.push({
@@ -82,12 +116,18 @@ for (const ex of EXERCISES) {
   });
 }
 
+summary.blocker_catalog = [...blockers];
+summary.fallback_options = [...new Set(summary.blocker_catalog.flatMap((b) => BLOCKER_FALLBACKS[b] || []))];
+
 fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2) + '\n', 'utf8');
 
 if (failures > 0) {
   console.error(`[readiness-gate] FAIL: ${failures} exercise gate(s) failed`);
   for (const ex of summary.exercises) {
     if (!ex.gate_pass) console.error(` - ${ex.exercise}: ${ex.fail_reasons.join(',')}`);
+  }
+  if (summary.blocker_catalog.length) {
+    console.error(`[readiness-gate] blockers: ${summary.blocker_catalog.join(',')}`);
   }
   process.exit(3);
 }

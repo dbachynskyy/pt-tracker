@@ -163,6 +163,7 @@ export function buildCompactGateSummary(report: ReadinessFailureReport): Compact
     exercises: IDS.map((id) => ({
       exercise: id,
       gate_pass: report.byExercise[id]?.quality?.gate_pass ?? false,
+      quality_score: Math.max(0, 100 - ((report.byExercise[id]?.quality?.gate_fail_reasons ?? ['MISSING_EXERCISE']).length * 20)),
       fail_reasons: report.byExercise[id]?.quality?.gate_fail_reasons ?? ['MISSING_EXERCISE'],
       threshold_profile_version: report.threshold_profile_version,
     })),

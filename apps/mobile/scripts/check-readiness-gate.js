@@ -76,6 +76,7 @@ for (const ex of EXERCISES) {
   summary.exercises.push({
     exercise: ex,
     gate_pass: gatePass,
+    quality_score: Math.max(0, 100 - reasons.length * 20),
     fail_reasons: reasons,
     threshold_profile_version: report.threshold_profile_version,
   });

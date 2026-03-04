@@ -271,3 +271,13 @@ Validator enforces:
 - all 10 canonical exercises present,
 - each exercise has required quality fields,
 - schema version is `orion.readiness.v1`.
+
+### Threshold profile config
+
+Canonical quality-gate thresholds are defined in:
+`apps/mobile/src/cv/readinessThresholds.ts`
+
+Artifact field `threshold_profile_version` is emitted in every `orion.readiness.v1` report.
+Validator enforces both:
+- complete 10-exercise threshold coverage,
+- complete 10-exercise artifact quality payload.

@@ -1,6 +1,7 @@
 import { createDetector, isMockCvEnabled } from '../mockDetector';
 import { registerFrameSource } from '../frameSource';
 import { stepForExercise } from '../exerciseAnalyzers';
+import { registerCvEventSink } from '../instrumentation';
 import { ExerciseType } from '../types';
 
 jest.useFakeTimers();
@@ -8,6 +9,7 @@ jest.useFakeTimers();
 describe('detector wiring (real-source only)', () => {
   afterEach(() => {
     registerFrameSource(null);
+    registerCvEventSink(null);
   });
 
   it('does not run mock mode', () => {
@@ -24,6 +26,20 @@ describe('detector wiring (real-source only)', () => {
     expect(frames.length).toBeGreaterThan(0);
     expect(frames[0].confidence).toBe(0);
     expect(frames[0].flags).toContain('LOW_CONFIDENCE');
+  });
+
+  it('emits cv_metrics instrumentation events', () => {
+    const events: any[] = [];
+    registerCvEventSink((e) => events.push(e));
+    const det = createDetector('squat');
+    det.start(() => undefined);
+    jest.advanceTimersByTime(3500); // >= 10 ticks
+    det.stop();
+
+    const metricEvent = events.find((e) => e.type === 'cv_metrics');
+    expect(metricEvent).toBeTruthy();
+    expect(metricEvent.exerciseType).toBe('squat');
+    expect(metricEvent.disconnectRate).toBeGreaterThanOrEqual(0);
   });
 });
 

@@ -307,3 +307,20 @@ CI line output:
 - `REALCV_RELEASE_READINESS go_no_go=<...> blockers=<n> lanes=<...>`
 
 Fails non-zero on any blocker.
+
+
+### Release readiness v2
+
+`run-realcv-release-gate.sh` now emits both:
+- `artifacts/realcv-release-readiness.v1.json` (backward-compatible)
+- `artifacts/realcv-release-readiness.v2.json`
+
+V2 adds inputs:
+- `ATLAS_PROVENANCE_ATTESTATION_FILE`
+- `HELIOS_STABILITY_SUMMARY_FILE`
+
+New blocker classes:
+- `ATLAS_ATTESTATION_FAIL`
+- `HELIOS_SEVERE_INSTABILITY`
+
+CI line includes version tag: `REALCV_RELEASE_READINESS[v2] ...`

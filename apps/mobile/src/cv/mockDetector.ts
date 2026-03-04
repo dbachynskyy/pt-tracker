@@ -1,20 +1,20 @@
 import { getFrameSource } from './frameSource';
 import { getLandmarkAdapter, nullLandmarkAdapter } from './landmarkAdapter';
-import { pushupStep, sitToStandStep, squatStep } from './exerciseAnalyzers';
+import { stepForExercise } from './exerciseAnalyzers';
 import { ConfidenceFlag, Detector, DetectorOutput, ExerciseType, RepResult } from './types';
 
 const TICK_MS = 300;
 
-function calcFormScore(reps: RepResult[]): number {
-  if (!reps.length) return 100;
+function calcFormScore(reps: RepResult[], fallback = 100): number {
+  if (!reps.length) return fallback;
   return Math.round(reps.reduce((s, r) => s + r.formScore, 0) / reps.length);
 }
 
-function output(exerciseType: ExerciseType, reps: RepResult[], confidence: number, elapsedMs: number, flags: ConfidenceFlag[]): DetectorOutput {
+function output(exerciseType: ExerciseType, reps: RepResult[], confidence: number, elapsedMs: number, flags: ConfidenceFlag[], formScoreFallback = 100): DetectorOutput {
   return {
     exerciseType,
     repCount: reps.length,
-    formScore: calcFormScore(reps),
+    formScore: calcFormScore(reps, formScoreFallback),
     confidence,
     flags,
     reps: [...reps],
@@ -58,20 +58,15 @@ export function createDetector(exerciseType: ExerciseType): Detector {
           return;
         }
 
-        if (!['squat', 'pushup', 'sit_to_stand'].includes(exerciseType)) {
+        const stepFn = stepForExercise(exerciseType);
+        if (!stepFn) {
           onFrame(output(exerciseType, reps, pose.confidence, elapsedMs, ['LOW_CONFIDENCE']));
           return;
         }
 
-        const prevState = { phase, repStartMs: reps.length ? reps[reps.length - 1].durationMs : startedMs };
-        const step =
-          exerciseType === 'squat'
-            ? squatStep(pose, prevState)
-            : exerciseType === 'pushup'
-              ? pushupStep(pose, prevState)
-              : sitToStandStep(pose, prevState);
-
+        const step = stepFn(pose, { phase, repStartMs: startedMs });
         phase = step.state.phase;
+
         if (step.didRep) {
           reps.push({
             repNumber: reps.length + 1,
@@ -81,7 +76,7 @@ export function createDetector(exerciseType: ExerciseType): Detector {
           });
         }
 
-        onFrame(output(exerciseType, reps, pose.confidence, elapsedMs, step.flags));
+        onFrame(output(exerciseType, reps, pose.confidence, elapsedMs, step.flags, step.formScore));
       }, TICK_MS);
     },
     stop() {

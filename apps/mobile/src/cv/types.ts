@@ -4,11 +4,11 @@ export type ExerciseType =
   | 'sit_to_stand'
   | 'plank'
   | 'lunge'
-  | 'step_up'
   | 'glute_bridge'
-  | 'clamshell'
-  | 'bird_dog'
-  | 'dead_bug';
+  | 'knee_extension'
+  | 'heel_raise'
+  | 'calf_raise'
+  | 'shoulder_abduction';
 
 export const EXERCISE_LABELS: Record<ExerciseType, string> = {
   squat: 'Squat',
@@ -16,11 +16,11 @@ export const EXERCISE_LABELS: Record<ExerciseType, string> = {
   sit_to_stand: 'Sit-to-Stand',
   plank: 'Plank',
   lunge: 'Lunge',
-  step_up: 'Step-up',
   glute_bridge: 'Glute Bridge',
-  clamshell: 'Clamshell',
-  bird_dog: 'Bird Dog',
-  dead_bug: 'Dead Bug',
+  knee_extension: 'Knee Extension',
+  heel_raise: 'Heel Raise',
+  calf_raise: 'Calf Raise',
+  shoulder_abduction: 'Shoulder Abduction',
 };
 
 export const HOLD_EXERCISES = new Set<ExerciseType>(['plank']);
@@ -75,6 +75,8 @@ export type LandmarkName =
   | 'right_knee'
   | 'left_ankle'
   | 'right_ankle'
+  | 'left_foot'
+  | 'right_foot'
   | 'nose';
 
 export interface Landmark {

@@ -1,7 +1,7 @@
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ExerciseType, EXERCISE_LABELS } from '../cv/types';
 
-const ALL_EXERCISES: ExerciseType[] = ['squat', 'pushup', 'plank', 'sit_to_stand'];
+const ALL_EXERCISES: ExerciseType[] = Object.keys(EXERCISE_LABELS) as ExerciseType[];
 
 interface Props {
   selected: ExerciseType;

@@ -109,3 +109,22 @@ Compatibility mapping guarantee:
 Required per-exercise fields (all 10 exercises):
 - `present`, `source_valid`, `source_attested`, `attestation_reasons[]`
 - `frame_count`, `min_landmarks_ok`, `gate_pass`, `failure_reasons[]`
+
+
+## Real-device provenance attestation
+Collector/import now hard-fails placeholder/simulated provenance and requires metadata fields per exercise capture:
+- `device_id`
+- `os_version` (e.g., `iOS 18.1`, `Android 15`)
+- `app_version` (semver, e.g., `v1.2.0`)
+- `capture_ts` (positive epoch ms)
+- `source` (must not contain placeholder/simulated/mock/synthetic/test)
+
+Run:
+```bash
+cd apps/mobile
+node scripts/provenance-attestation.mjs fixtures/native-frame-bundles/atlas-captures.v1.json artifacts/atlas-provenance-attestation.v1.json
+```
+
+Output report: `artifacts/atlas-provenance-attestation.v1.json`
+- per exercise: `pass`, `reasons[]`, `metadata`
+- aggregate: `passed_exercises`, `failed_exercises`, `coverage_ratio`

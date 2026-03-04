@@ -1,0 +1,14 @@
+{
+  "exercises": [
+    {"exerciseId":"squat","ready":true,"reason":"native ready"},
+    {"exerciseId":"pushup","ready":true,"reason":"native ready"},
+    {"exerciseId":"sit_to_stand","ready":true,"reason":"native ready"},
+    {"exerciseId":"plank","ready":true,"reason":"native ready"},
+    {"exerciseId":"lunge","ready":true,"reason":"native ready"},
+    {"exerciseId":"glute_bridge","ready":true,"reason":"native ready"},
+    {"exerciseId":"knee_extension","ready":true,"reason":"native ready"},
+    {"exerciseId":"heel_raise","ready":true,"reason":"native ready"},
+    {"exerciseId":"calf_raise","ready":true,"reason":"native ready"},
+    {"exerciseId":"shoulder_abduction","ready":true,"reason":"native ready"}
+  ]
+}

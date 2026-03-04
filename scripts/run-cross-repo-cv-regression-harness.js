@@ -24,190 +24,169 @@ function gitSha(repoDir) {
   if (!exists(repoDir) || !exists(path.join(repoDir, '.git'))) return null;
   try {
     return execSync('git rev-parse --short HEAD', { cwd: repoDir, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 function findMatchesInFile(filePath, patterns) {
   const matches = [];
   if (!exists(filePath)) return matches;
-  const text = fs.readFileSync(filePath, 'utf8');
-  const lines = text.split('\n');
+  const lines = fs.readFileSync(filePath, 'utf8').split('\n');
   lines.forEach((line, i) => {
     for (const p of patterns) {
-      if (!p) continue;
-      if (line.includes(p)) {
-        matches.push({ file: filePath, line: i + 1, pattern: p, snippet: line.trim().slice(0, 180) });
-      }
+      if (p && line.includes(p)) matches.push({ file: filePath, line: i + 1, pattern: p, snippet: line.trim().slice(0, 180) });
     }
   });
   return matches;
 }
 
+function parseReadinessFile(filePath, sourceName, blockers) {
+  const map = {};
+  if (!filePath) return map;
+  if (!exists(filePath)) {
+    pushBlocker(blockers, 'MISSING_CONTRACT', `${sourceName} readiness file missing: ${filePath}`);
+    return map;
+  }
+  const raw = readJson(filePath);
+  const entries = Array.isArray(raw) ? raw : Array.isArray(raw.exercises) ? raw.exercises : Object.entries(raw.readiness || {}).map(([k, v]) => ({ exerciseId: k, ...(typeof v === 'string' ? { reason: v } : v) }));
+  for (const e of entries) {
+    const id = norm(e.exerciseId || e.id);
+    if (!id) continue;
+    map[id] = {
+      ready: e.ready !== false,
+      reason: e.reason || e.readinessReason || null,
+      source: sourceName,
+      raw: e,
+    };
+  }
+  return map;
+}
+
 function parseAtlasSelectorExposure(blockers, atlasDir) {
   const todo = path.join(atlasDir, 'TODO_EXERCISES.md');
-  const ids = new Set();
-  const evidenceById = {};
-
+  const ids = new Set(); const evidenceById = {};
   if (!exists(atlasDir)) pushBlocker(blockers, 'MISSING_REPO', `ATLAS_DIR missing: ${atlasDir}`);
-  if (!exists(todo)) {
-    pushBlocker(blockers, 'MISSING_CONTRACT', `Atlas selector contract missing: ${todo}`);
-    return { ids, evidenceById };
-  }
-
-  const t = fs.readFileSync(todo, 'utf8');
-  const impl = t.split(/\n##\s+|\nInfra:/i)[0];
-  const lines = impl.split('\n');
-  lines.forEach((line, i) => {
-    const m = line.match(/- \[[xX]\]\s+([a-zA-Z0-9_\-]+)/);
-    if (!m) return;
-    const id = norm(m[1]);
-    ids.add(id);
+  if (!exists(todo)) { pushBlocker(blockers, 'MISSING_CONTRACT', `Atlas selector contract missing: ${todo}`); return { ids, evidenceById }; }
+  const impl = fs.readFileSync(todo, 'utf8').split(/\n##\s+|\nInfra:/i)[0];
+  impl.split('\n').forEach((line, i) => {
+    const m = line.match(/- \[[xX]\]\s+([a-zA-Z0-9_\-]+)/); if (!m) return;
+    const id = norm(m[1]); ids.add(id);
     evidenceById[id] = evidenceById[id] || [];
     evidenceById[id].push({ file: todo, line: i + 1, pattern: m[1], snippet: line.trim().slice(0, 180) });
   });
-
   return { ids, evidenceById };
 }
 
 function parseHeliosAnalyzerRouting(blockers, contract, heliosDir) {
-  const ids = new Set();
-  const evidenceById = {};
-
-  const srcRoot = path.join(heliosDir, 'apps', 'mobile', 'src');
-  const cvEx = path.join(srcRoot, 'cv', 'exercises');
-  const routingCandidates = [
-    path.join(srcRoot, 'screens', 'SessionScreen.tsx'),
-    path.join(srcRoot, 'cv', 'calibrationStabilization.ts'),
-    path.join(srcRoot, 'cv', 'exerciseSelector.ts'),
-    path.join(srcRoot, 'cv', 'routing.ts'),
-  ];
-
+  const ids = new Set(); const evidenceById = {};
+  const src = path.join(heliosDir, 'apps', 'mobile', 'src');
+  const cvEx = path.join(src, 'cv', 'exercises');
+  const candidates = [path.join(src, 'screens', 'SessionScreen.tsx'), path.join(src, 'cv', 'calibrationStabilization.ts'), path.join(src, 'cv', 'exerciseSelector.ts'), path.join(src, 'cv', 'routing.ts')];
   if (!exists(heliosDir)) pushBlocker(blockers, 'MISSING_REPO', `HELIOS_DIR missing: ${heliosDir}`);
-  if (!exists(cvEx)) {
-    pushBlocker(blockers, 'MISSING_CONTRACT', `Helios exercise analyzer dir missing: ${cvEx}`);
-    return { ids, evidenceById };
-  }
-
-  const availableRoutingFiles = routingCandidates.filter(exists);
-  if (!availableRoutingFiles.length) {
-    pushBlocker(blockers, 'MISSING_CONTRACT', `No routing source found in candidates: ${routingCandidates.join(', ')}`);
-    return { ids, evidenceById };
-  }
+  if (!exists(cvEx)) { pushBlocker(blockers, 'MISSING_CONTRACT', `Helios exercise analyzer dir missing: ${cvEx}`); return { ids, evidenceById }; }
+  const files = candidates.filter(exists);
+  if (!files.length) { pushBlocker(blockers, 'MISSING_CONTRACT', `No routing source found in candidates: ${candidates.join(', ')}`); return { ids, evidenceById }; }
 
   for (const ex of contract.exercises) {
     const id = norm(ex.id);
     const acceptedIds = (ex.acceptedRoutingIds || [id]).map(norm);
     const acceptedClasses = (ex.acceptedAnalyzerClasses || [ex.analyzerClass]).filter(Boolean);
     const patterns = [...acceptedIds.flatMap((x) => [`'${x}'`, `"${x}"`]), ...acceptedClasses];
-
-    let exMatches = [];
-    for (const file of availableRoutingFiles) {
-      exMatches = exMatches.concat(findMatchesInFile(file, patterns));
-    }
-
-    if (exMatches.length) {
-      ids.add(id);
-      evidenceById[id] = exMatches;
-    }
+    let m = [];
+    for (const f of files) m = m.concat(findMatchesInFile(f, patterns));
+    if (m.length) { ids.add(id); evidenceById[id] = m; }
   }
-
   return { ids, evidenceById };
 }
 
 function parseHeliosCoverageSignal(blockers, contract, heliosDir) {
-  const ids = new Set();
-  const evidenceById = {};
+  const ids = new Set(); const evidenceById = {};
   const testsDir = path.join(heliosDir, 'apps', 'mobile', 'src', 'cv', '__tests__');
-
-  if (!exists(testsDir)) {
-    pushBlocker(blockers, 'MISSING_CONTRACT', `Helios test dir missing: ${testsDir}`);
-    return { ids, evidenceById };
-  }
-
-  const files = fs.readdirSync(testsDir).filter((f) => f.endsWith('.ts'));
-  const fileSet = new Set(files);
-
+  if (!exists(testsDir)) { pushBlocker(blockers, 'MISSING_CONTRACT', `Helios test dir missing: ${testsDir}`); return { ids, evidenceById }; }
+  const files = fs.readdirSync(testsDir).filter((f) => f.endsWith('.ts')); const fileSet = new Set(files);
   for (const ex of contract.exercises) {
     const id = norm(ex.id);
     const acceptedIds = (ex.acceptedRoutingIds || [id]).map(norm);
     const acceptedClasses = (ex.acceptedAnalyzerClasses || [ex.analyzerClass]).filter(Boolean);
-    const testSignals = ex.testSignals || [];
-    let matches = [];
-
-    for (const sig of testSignals) {
-      if (fileSet.has(sig)) {
-        matches.push({ file: path.join(testsDir, sig), line: 1, pattern: sig, snippet: 'test signal file present' });
-      }
-    }
-
-    if (!matches.length) {
+    let m = [];
+    for (const sig of (ex.testSignals || [])) if (fileSet.has(sig)) m.push({ file: path.join(testsDir, sig), line: 1, pattern: sig, snippet: 'test signal file present' });
+    if (!m.length) {
       const patterns = [...acceptedClasses, ...acceptedIds.flatMap((x) => [`'${x}'`, `"${x}"`])];
-      for (const f of files) {
-        matches = matches.concat(findMatchesInFile(path.join(testsDir, f), patterns));
-      }
+      for (const f of files) m = m.concat(findMatchesInFile(path.join(testsDir, f), patterns));
     }
-
-    if (matches.length) {
-      ids.add(id);
-      evidenceById[id] = matches;
-    }
+    if (m.length) { ids.add(id); evidenceById[id] = m; }
   }
-
   return { ids, evidenceById };
 }
 
 function loadFixture(rootDir) {
   const j = readJson(path.join(rootDir, 'schemas', 'cv', 'cross-repo-regression.fixture.json'));
   const mk = (ids, channel) => {
-    const set = new Set((ids || []).map(norm));
-    const evidence = {};
+    const set = new Set((ids || []).map(norm)); const evidence = {};
     for (const id of set) evidence[id] = [{ file: 'fixture', line: 1, pattern: id, snippet: `${channel} fixture` }];
     return { ids: set, evidenceById: evidence };
   };
+  return { selector: mk(j.selectorExposure, 'selector'), routing: mk(j.analyzerRouting, 'routing'), coverage: mk(j.testCoverageSignal, 'coverage') };
+}
+
+function classifyFailFast(report, summary) {
+  const phrases = [
+    ...report.blockers.map((b) => `${b.code} ${b.detail}`),
+    ...summary.readiness_matrix.flatMap((r) => [r.atlasReadinessReason || '', r.heliosReadinessReason || '']),
+  ].map((x) => x.toLowerCase());
+
+  const isNegative = (t) => /(denied|missing|failed|error|blocked|unavailable|invalid|expired|insufficient|quota exceeded|unauthori|forbidden)/.test(t);
+  const any = (re) => phrases.some((p) => re.test(p) && isNegative(p));
+
+  const categories = [];
+  const add = (code, when, fallback) => { if (when) categories.push({ code, fallback }); };
+  add('CAMERA_BLOCKER', any(/(camera|permission|capture|lens|device)/), 'Fallback: run fixtures mode; verify camera permissions/device binding on Atlas/Helios hosts.');
+  add('AUTH_BLOCKER', any(/(auth|token|login|session)/), 'Fallback: refresh service auth/token, then rerun live strict gate.');
+  add('CREDITS_BLOCKER', any(/(credit|quota|billing|limit)/), 'Fallback: top up credits/quota or switch to fixture mode for CI until restored.');
+  return { triggered: categories.length > 0, categories };
+}
+
+function computeTrend(previousSummary, currentSummary) {
+  if (!previousSummary) return null;
   return {
-    selector: mk(j.selectorExposure, 'selector'),
-    routing: mk(j.analyzerRouting, 'routing'),
-    coverage: mk(j.testCoverageSignal, 'coverage'),
+    pass_delta: currentSummary.pass_count - (previousSummary.pass_count || 0),
+    fail_delta: currentSummary.fail_count - (previousSummary.fail_count || 0),
+    blocked_delta: currentSummary.blocked_count - (previousSummary.blocked_count || 0),
+    status_changed: (previousSummary.status || null) !== currentSummary.status,
+    strict_status_changed: (previousSummary.strictGateStatus || null) !== currentSummary.strictGateStatus,
+    previous_generatedAt: previousSummary.generatedAt || null,
   };
 }
 
-function evaluate(contract, selectorInfo, routingInfo, coverageInfo, blockers, modeUsed) {
-  const rows = [];
-  const failures = [];
-
+function evaluate(contract, selectorInfo, routingInfo, coverageInfo, blockers, modeUsed, atlasReadiness, heliosReadiness) {
+  const rows = []; const failures = [];
   for (const ex of contract.exercises) {
     const id = norm(ex.id);
+    const aR = atlasReadiness[id] || null;
+    const hR = heliosReadiness[id] || null;
     const row = {
       exerciseId: id,
       selectorExposure: selectorInfo.ids.has(id),
       analyzerRouting: routingInfo.ids.has(id),
       minimumTestCoverageSignal: coverageInfo.ids.has(id),
+      atlasReadiness: aR ? aR.ready : null,
+      atlasReadinessReason: aR ? aR.reason : null,
+      heliosReadiness: hR ? hR.ready : null,
+      heliosReadinessReason: hR ? hR.reason : null,
       evidence: {
         selectorExposure: selectorInfo.evidenceById[id] || [],
         analyzerRouting: routingInfo.evidenceById[id] || [],
         minimumTestCoverageSignal: coverageInfo.evidenceById[id] || [],
       },
-      status: 'PASS',
-      failureCodes: [],
+      status: 'PASS', failureCodes: [],
     };
-
     if (!row.selectorExposure) row.failureCodes.push('MISSING_SELECTOR_EXPOSURE');
     if (!row.analyzerRouting) row.failureCodes.push('MISSING_ANALYZER_ROUTING');
     if (!row.minimumTestCoverageSignal) row.failureCodes.push('MISSING_TEST_SIGNAL');
-
-    if (row.failureCodes.length) {
-      row.status = 'FAIL';
-      failures.push({ exerciseId: id, failureCodes: row.failureCodes });
-    }
-
+    if (row.failureCodes.length) { row.status = 'FAIL'; failures.push({ exerciseId: id, failureCodes: row.failureCodes }); }
     rows.push(row);
   }
-
   const blocked = modeUsed === 'live' && blockers.length > 0;
-  const status = blocked ? 'BLOCKED' : (failures.length === 0 ? 'PASS' : 'FAIL');
-  return { status, rows, failures };
+  return { status: blocked ? 'BLOCKED' : (failures.length ? 'FAIL' : 'PASS'), rows, failures };
 }
 
 function buildSummary(report, opts = {}) {
@@ -215,7 +194,6 @@ function buildSummary(report, opts = {}) {
   const passCount = report.summary.pass;
   const blockedCount = report.blockers.length;
   const requiredCount = report.requiredExerciseCount;
-
   let strictGateStatus = 'DISABLED';
   if (strictGate) {
     if (report.mode !== 'live') strictGateStatus = 'NOT_LIVE';
@@ -223,7 +201,7 @@ function buildSummary(report, opts = {}) {
     else strictGateStatus = passCount >= requiredCount ? 'PASS' : 'FAIL';
   }
 
-  return {
+  const summary = {
     generatedAt: report.generatedAt,
     mode: report.mode,
     strictGateEnabled: strictGate,
@@ -242,65 +220,20 @@ function buildSummary(report, opts = {}) {
       selectorExposure: r.selectorExposure,
       analyzerRouting: r.analyzerRouting,
       minimumTestCoverageSignal: r.minimumTestCoverageSignal,
+      atlasReadiness: r.atlasReadiness,
+      atlasReadinessReason: r.atlasReadinessReason,
+      heliosReadiness: r.heliosReadiness,
+      heliosReadinessReason: r.heliosReadinessReason,
       status: r.status,
       failureCodes: r.failureCodes,
     })),
   };
-}
-
-function renderMd(report, summary) {
-  const lines = [
-    '# Cross-Repo CV Regression Harness Report',
-    '',
-    `- Timestamp: ${report.generatedAt}`,
-    `- Mode: ${report.mode}`,
-    `- Status: ${report.status}`,
-    `- Strict gate: ${summary.strictGateEnabled ? summary.strictGateStatus : 'DISABLED'}`,
-    `- Atlas SHA: ${report.provenance.atlasGitSha || 'unknown'}`,
-    `- Helios SHA: ${report.provenance.heliosGitSha || 'unknown'}`,
-    `- Pass count: ${summary.pass_count}/${summary.requiredCount}`,
-    `- Blocked count: ${summary.blocked_count}`,
-    '',
-    '## Per-exercise readiness matrix',
-    '',
-    '| Exercise | Selector exposure | Analyzer routing | Min test signal | Status | Codes |',
-    '|---|---:|---:|---:|---|---|',
-  ];
-
-  for (const r of report.results) {
-    lines.push(`| ${r.exerciseId} | ${r.selectorExposure ? '✅' : '❌'} | ${r.analyzerRouting ? '✅' : '❌'} | ${r.minimumTestCoverageSignal ? '✅' : '❌'} | ${r.status} | ${r.failureCodes.join(', ') || '—'} |`);
-  }
-
-  lines.push('', '## Evidence snapshot', '');
-  for (const r of report.results) {
-    lines.push(`### ${r.exerciseId}`);
-    for (const [k, ev] of Object.entries(r.evidence)) {
-      if (!ev.length) lines.push(`- ${k}: none`);
-      else lines.push(`- ${k}: ${ev[0].file}:${ev[0].line} (${ev[0].pattern})`);
-    }
-    lines.push('');
-  }
-
-  lines.push('## Blocker taxonomy', '');
-  for (const [k, v] of Object.entries(report.taxonomy)) lines.push(`- ${k}: ${v}`);
-
-  if (report.blockers.length) {
-    lines.push('', '## Blockers', '');
-    for (const b of report.blockers) lines.push(`- ${b.code}: ${b.detail}`);
-  }
-
-  lines.push('', '## Fallback options', '',
-    '- Use `--mode fixtures` in CI when sibling repos are unavailable.',
-    '- Use `--mode auto` to prefer live parsing and fall back to fixtures with explicit blocker note.',
-    '- Use `--mode live --strict-gate` for release gating (real-camera 10/10 readiness).');
-
-  return lines.join('\n');
+  return summary;
 }
 
 function renderSummaryMd(summary) {
   const lines = [
-    '# Cross-Repo CV Regression Summary',
-    '',
+    '# Cross-Repo CV Regression Summary', '',
     `- Timestamp: ${summary.generatedAt}`,
     `- Mode: ${summary.mode}`,
     `- Status: ${summary.status}`,
@@ -311,54 +244,59 @@ function renderSummaryMd(summary) {
     `- Pass count: ${summary.pass_count}/${summary.requiredCount}`,
     `- Fail count: ${summary.fail_count}`,
     `- Blocked count: ${summary.blocked_count}`,
-    '',
-    '## Readiness matrix',
-    '',
-    '| Exercise | Selector | Routing | Tests | Status |',
-    '|---|---:|---:|---:|---|',
+    '', '## Readiness matrix', '',
+    '| Exercise | Selector | Routing | Tests | Atlas ready | Helios ready | Status |',
+    '|---|---:|---:|---:|---:|---:|---|',
   ];
-  for (const r of summary.readiness_matrix) {
-    lines.push(`| ${r.exerciseId} | ${r.selectorExposure ? '✅' : '❌'} | ${r.analyzerRouting ? '✅' : '❌'} | ${r.minimumTestCoverageSignal ? '✅' : '❌'} | ${r.status} |`);
+  for (const r of summary.readiness_matrix) lines.push(`| ${r.exerciseId} | ${r.selectorExposure ? '✅' : '❌'} | ${r.analyzerRouting ? '✅' : '❌'} | ${r.minimumTestCoverageSignal ? '✅' : '❌'} | ${r.atlasReadiness === null ? '—' : (r.atlasReadiness ? '✅' : '❌')} | ${r.heliosReadiness === null ? '—' : (r.heliosReadiness ? '✅' : '❌')} | ${r.status} |`);
+
+  if (summary.failFast?.triggered) {
+    lines.push('', '## Fail-fast classification', '');
+    for (const c of summary.failFast.categories) lines.push(`- ${c.code}: ${c.fallback}`);
+  }
+  if (summary.trend) {
+    lines.push('', '## Trend vs previous run', '');
+    lines.push(`- pass_delta: ${summary.trend.pass_delta}`);
+    lines.push(`- fail_delta: ${summary.trend.fail_delta}`);
+    lines.push(`- blocked_delta: ${summary.trend.blocked_delta}`);
   }
   return lines.join('\n');
 }
 
-function runHarness({ mode, atlasDir, heliosDir, rootDir = ROOT, strictGate = false, outJson, outMd, outSummaryJson, outSummaryMd }) {
+function renderMd(report, summary) {
+  return renderSummaryMd(summary) + '\n\n## Evidence\n\n' + report.results.map((r) => `### ${r.exerciseId}\n- selector: ${(r.evidence.selectorExposure[0] || {}).file || 'none'}\n- routing: ${(r.evidence.analyzerRouting[0] || {}).file || 'none'}\n- tests: ${(r.evidence.minimumTestCoverageSignal[0] || {}).file || 'none'}\n`).join('\n');
+}
+
+function runHarness({ mode, atlasDir, heliosDir, rootDir = ROOT, strictGate = false, outJson, outMd, outSummaryJson, outSummaryMd, atlasReadinessFile, heliosReadinessFile, previousSummaryPath }) {
   const contract = readJson(path.join(rootDir, 'schemas', 'cv', 'cross-repo-regression.contract.json'));
   const blockers = [];
   let modeUsed = mode;
-
   let selectorInfo = { ids: new Set(), evidenceById: {} };
   let routingInfo = { ids: new Set(), evidenceById: {} };
   let coverageInfo = { ids: new Set(), evidenceById: {} };
 
-  if (mode === 'fixtures') {
-    const fx = loadFixture(rootDir);
-    selectorInfo = fx.selector;
-    routingInfo = fx.routing;
-    coverageInfo = fx.coverage;
-  } else if (mode === 'live') {
+  if (mode === 'fixtures') ({ selector: selectorInfo, routing: routingInfo, coverage: coverageInfo } = loadFixture(rootDir));
+  else if (mode === 'live') {
     selectorInfo = parseAtlasSelectorExposure(blockers, atlasDir);
     routingInfo = parseHeliosAnalyzerRouting(blockers, contract, heliosDir);
     coverageInfo = parseHeliosCoverageSignal(blockers, contract, heliosDir);
   } else {
-    const canLive = exists(atlasDir) && exists(heliosDir);
-    if (canLive) {
+    if (exists(atlasDir) && exists(heliosDir)) {
       modeUsed = 'live';
       selectorInfo = parseAtlasSelectorExposure(blockers, atlasDir);
       routingInfo = parseHeliosAnalyzerRouting(blockers, contract, heliosDir);
       coverageInfo = parseHeliosCoverageSignal(blockers, contract, heliosDir);
     } else {
       modeUsed = 'fixtures';
-      const fx = loadFixture(rootDir);
-      selectorInfo = fx.selector;
-      routingInfo = fx.routing;
-      coverageInfo = fx.coverage;
+      ({ selector: selectorInfo, routing: routingInfo, coverage: coverageInfo } = loadFixture(rootDir));
       pushBlocker(blockers, 'MISSING_REPO', `auto fallback to fixtures; expected ATLAS_DIR=${atlasDir}, HELIOS_DIR=${heliosDir}`);
     }
   }
 
-  const evalResult = evaluate(contract, selectorInfo, routingInfo, coverageInfo, blockers, modeUsed);
+  const atlasReadiness = parseReadinessFile(atlasReadinessFile, 'atlas', blockers);
+  const heliosReadiness = parseReadinessFile(heliosReadinessFile, 'helios', blockers);
+
+  const evalResult = evaluate(contract, selectorInfo, routingInfo, coverageInfo, blockers, modeUsed, atlasReadiness, heliosReadiness);
   const report = {
     generatedAt: new Date().toISOString(),
     mode: modeUsed,
@@ -366,77 +304,59 @@ function runHarness({ mode, atlasDir, heliosDir, rootDir = ROOT, strictGate = fa
     requiredExerciseCount: contract.requiredExerciseCount,
     taxonomy: TAXONOMY,
     blockers,
-    provenance: {
-      atlasGitSha: gitSha(atlasDir),
-      heliosGitSha: gitSha(heliosDir),
-      atlasDir,
-      heliosDir,
-    },
+    provenance: { atlasGitSha: gitSha(atlasDir), heliosGitSha: gitSha(heliosDir), atlasDir, heliosDir },
     results: evalResult.rows,
     failures: evalResult.failures,
-    summary: {
-      pass: evalResult.rows.filter((r) => r.status === 'PASS').length,
-      fail: evalResult.rows.filter((r) => r.status === 'FAIL').length,
-    },
+    summary: { pass: evalResult.rows.filter((r) => r.status === 'PASS').length, fail: evalResult.rows.filter((r) => r.status === 'FAIL').length },
   };
 
   const summary = buildSummary(report, { strictGate });
+  summary.failFast = classifyFailFast(report, summary);
+  if (strictGate && summary.failFast.triggered && summary.strictGateStatus === 'PASS') summary.strictGateStatus = 'FAIL_FAST';
+
+  let prev = null;
+  if (previousSummaryPath && exists(previousSummaryPath)) {
+    try { prev = readJson(previousSummaryPath); } catch {}
+  }
+  summary.trend = computeTrend(prev, summary);
 
   fs.mkdirSync(path.dirname(outJson), { recursive: true });
   fs.writeFileSync(outJson, JSON.stringify(report, null, 2));
   fs.writeFileSync(outMd, renderMd(report, summary));
   fs.writeFileSync(outSummaryJson, JSON.stringify(summary, null, 2));
   fs.writeFileSync(outSummaryMd, renderSummaryMd(summary));
-
   return { report, summary };
 }
 
 function cli() {
   const args = process.argv.slice(2);
-  const arg = (name, dflt = null) => {
-    const i = args.indexOf(name);
-    return i >= 0 ? args[i + 1] : dflt;
-  };
-  const has = (name) => args.includes(name);
+  const arg = (n, d = null) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; };
+  const has = (n) => args.includes(n);
 
   const mode = arg('--mode', 'auto');
   const atlasDir = arg('--atlas-dir', process.env.ATLAS_DIR || '/tmp/pt-atlas');
   const heliosDir = arg('--helios-dir', process.env.HELIOS_DIR || '/tmp/pt-helios');
   const strictGate = has('--strict-gate');
-
   const outJson = arg('--out', path.join(ROOT, 'artifacts', 'cross-repo-cv-regression.json'));
   const outMd = arg('--out-md', path.join(ROOT, 'artifacts', 'cross-repo-cv-regression.md'));
   const outSummaryJson = arg('--out-summary', path.join(ROOT, 'artifacts', 'cross-repo-cv-regression-summary.json'));
   const outSummaryMd = arg('--out-summary-md', path.join(ROOT, 'artifacts', 'cross-repo-cv-regression-summary.md'));
+  const atlasReadinessFile = arg('--atlas-readiness-file', process.env.ATLAS_READINESS_FILE || null);
+  const heliosReadinessFile = arg('--helios-readiness-file', process.env.HELIOS_READINESS_FILE || null);
+  const previousSummaryPath = arg('--previous-summary', outSummaryJson);
 
-  const { report, summary } = runHarness({ mode, atlasDir, heliosDir, strictGate, outJson, outMd, outSummaryJson, outSummaryMd });
+  const { report, summary } = runHarness({ mode, atlasDir, heliosDir, strictGate, outJson, outMd, outSummaryJson, outSummaryMd, atlasReadinessFile, heliosReadinessFile, previousSummaryPath });
 
   console.log(`Cross-repo CV regression harness status: ${report.status}`);
   console.log(`Strict gate status: ${summary.strictGateStatus}`);
-  console.log(`JSON: ${outJson}`);
-  console.log(`MD:   ${outMd}`);
   console.log(`Summary JSON: ${outSummaryJson}`);
-  console.log(`Summary MD:   ${outSummaryMd}`);
 
   if (report.status === 'BLOCKED') process.exit(2);
-  if (strictGate && summary.strictGateStatus === 'FAIL') process.exit(1);
-  if (strictGate && summary.strictGateStatus === 'NOT_LIVE') process.exit(1);
+  if (strictGate && ['FAIL', 'NOT_LIVE', 'FAIL_FAST'].includes(summary.strictGateStatus)) process.exit(1);
   if (report.status === 'PASS') process.exit(0);
   process.exit(1);
 }
 
 if (require.main === module) cli();
 
-module.exports = {
-  TAXONOMY,
-  norm,
-  findMatchesInFile,
-  parseAtlasSelectorExposure,
-  parseHeliosAnalyzerRouting,
-  parseHeliosCoverageSignal,
-  loadFixture,
-  evaluate,
-  buildSummary,
-  renderSummaryMd,
-  runHarness,
-};
+module.exports = { TAXONOMY, norm, parseReadinessFile, classifyFailFast, computeTrend, findMatchesInFile, parseAtlasSelectorExposure, parseHeliosAnalyzerRouting, parseHeliosCoverageSignal, loadFixture, evaluate, buildSummary, renderSummaryMd, runHarness };

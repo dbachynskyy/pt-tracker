@@ -1,0 +1,14 @@
+{
+  "exercises": [
+    {"exerciseId":"squat","ready":true,"reason":"camera pipeline validated"},
+    {"exerciseId":"pushup","ready":true,"reason":"camera pipeline validated"},
+    {"exerciseId":"sit_to_stand","ready":true,"reason":"camera pipeline validated"},
+    {"exerciseId":"plank","ready":true,"reason":"camera pipeline validated"},
+    {"exerciseId":"lunge","ready":true,"reason":"camera pipeline validated"},
+    {"exerciseId":"glute_bridge","ready":true,"reason":"camera pipeline validated"},
+    {"exerciseId":"knee_extension","ready":true,"reason":"camera pipeline validated"},
+    {"exerciseId":"heel_raise","ready":true,"reason":"camera pipeline validated"},
+    {"exerciseId":"calf_raise","ready":true,"reason":"camera pipeline validated"},
+    {"exerciseId":"shoulder_abduction","ready":true,"reason":"camera pipeline validated"}
+  ]
+}

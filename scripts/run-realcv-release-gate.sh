@@ -86,3 +86,29 @@ node -e '
   if (m.regressions>0 && token!="ALLOW") process.exit(1);
   process.exit(0);
 ' "$ROOT_DIR/artifacts/realcv-release-candidate-matrix.v1.json"
+
+
+# Trend history + consecutive regression guard (latest first)
+HISTORY_MATRIX_1="${HISTORY_MATRIX_1:-$ROOT_DIR/artifacts/realcv-release-candidate-matrix.v1.json}"
+HISTORY_MATRIX_2="${HISTORY_MATRIX_2:-$ROOT_DIR/artifacts/realcv-release-candidate-matrix.prev1.v1.json}"
+HISTORY_MATRIX_3="${HISTORY_MATRIX_3:-$ROOT_DIR/artifacts/realcv-release-candidate-matrix.prev2.v1.json}"
+
+MATRIX_INPUTS=()
+[[ -f "$HISTORY_MATRIX_1" ]] && MATRIX_INPUTS+=("$HISTORY_MATRIX_1")
+[[ -f "$HISTORY_MATRIX_2" ]] && MATRIX_INPUTS+=("$HISTORY_MATRIX_2")
+[[ -f "$HISTORY_MATRIX_3" ]] && MATRIX_INPUTS+=("$HISTORY_MATRIX_3")
+
+if [[ ${#MATRIX_INPUTS[@]} -eq 0 ]]; then
+  MATRIX_INPUTS+=("$ROOT_DIR/artifacts/realcv-release-candidate-matrix.v1.json")
+fi
+
+node "$SCRIPT_DIR/build-realcv-trend-history.js" "${MATRIX_INPUTS[@]}"   --out "$ROOT_DIR/artifacts/realcv-release-trend-history.v1.json"   --md "$ROOT_DIR/artifacts/realcv-release-trend-history.md" || true
+
+# Guard: fail on >=2 consecutive regressions unless override
+node -e '
+  const fs=require("fs");
+  const t=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
+  const token=process.env.ALLOW_REALCV_REGRESSION_OVERRIDE||"";
+  if (t.guard_fail && token!="ALLOW") process.exit(1);
+  process.exit(0);
+' "$ROOT_DIR/artifacts/realcv-release-trend-history.v1.json"

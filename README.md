@@ -174,3 +174,9 @@ bash scripts/run-realcv-rollout-gate.sh
 ```
 
 Status artifact: `artifacts/realcv-rollout-status.json`.
+
+Build unified rollout truth source:
+
+```bash
+node scripts/build-realcv-master-readiness.js atlas.native-readiness.v1.json artifacts/helios.native-readiness.v1.json artifacts/cross-repo-cv-regression-summary.json artifacts/realcv-master-readiness.json
+```

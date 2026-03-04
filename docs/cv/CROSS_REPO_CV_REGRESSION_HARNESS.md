@@ -206,3 +206,24 @@ Fallback behavior:
 - Missing readiness file -> `MISSING_READINESS_ARTIFACT` + fallback action in status
 - Unparseable readiness file -> `UNPARSEABLE_READINESS_ARTIFACT` + fallback action
 - Missing canonical readiness entries -> `MISSING_READINESS_EXERCISE` + regenerate readiness outputs
+
+
+## Master readiness truth source
+
+Build unified master readiness from Atlas + Helios + Orion summary:
+
+```bash
+node scripts/build-realcv-master-readiness.js   atlas.native-readiness.v1.json   artifacts/helios.native-readiness.v1.json   artifacts/cross-repo-cv-regression-summary.json   artifacts/realcv-master-readiness.json
+```
+
+Output sections:
+- `exercise_coverage`
+- `lane_status` (`atlas` / `helios` / `orion`)
+- `blockers`
+- `tests_passed`
+- `next_actions`
+- `generated_at`
+
+Fallback behavior:
+- Unparseable input JSON -> `UNPARSEABLE_*` blocker with lane-specific fix guidance.
+- Partial exercise coverage (<10) -> `PARTIAL_*_COVERAGE` blocker with backfill guidance.

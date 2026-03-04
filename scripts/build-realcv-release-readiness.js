@@ -65,10 +65,18 @@ function buildV1(atlas, helios, orion) {
   };
 }
 
-function buildV2(atlas, helios, orion, atlasAtt, heliosStability) {
+function buildV2(atlas, helios, orion, atlasAtt, heliosStability, ex10Status) {
   const out = buildV1(atlas, helios, orion);
   out.version = 'v2';
   const add = (code, source, detail, severity='blocker') => out.blocker_catalog.push({ code, source, detail, severity });
+
+  // 10-ex status artifact contract blocker
+  if (!ex10Status.ok) {
+    add('REALCV_10EX_STATUS_MISSING_OR_MALFORMED', 'orion', `10ex status missing/malformed: ${ex10Status.error}`);
+  } else {
+    const rows = Array.isArray(ex10Status.data.exercises) ? ex10Status.data.exercises : null;
+    if (!rows || rows.length !== 10) add('REALCV_10EX_STATUS_MISSING_OR_MALFORMED', 'orion', '10ex status does not contain 10 fixed exercises');
+  }
 
   // Atlas provenance attestation blocker
   if (!atlasAtt.ok) {
@@ -107,6 +115,7 @@ function main(){
   const outPath = val('--out', `artifacts/realcv-release-readiness.${version}.json`);
   const atlasAttPath = val('--atlas-attestation');
   const heliosStabilityPath = val('--helios-stability');
+  const ex10StatusPath = val('--ex10-status');
 
   // backward-compatible positional interface
   if (!atlasPath && args.length >= 3 && !has('--atlas')) {
@@ -119,7 +128,7 @@ function main(){
   }
 
   if(!atlasPath||!heliosPath||!orionPath){
-    console.error('Usage: node scripts/build-realcv-release-readiness.js --version v1|v2 --atlas <atlas.json> --helios <helios.json> --orion <orion.json> [--atlas-attestation <file>] [--helios-stability <file>] [--out <out.json>]');
+    console.error('Usage: node scripts/build-realcv-release-readiness.js --version v1|v2 --atlas <atlas.json> --helios <helios.json> --orion <orion.json> [--atlas-attestation <file>] [--helios-stability <file>] [--ex10-status <file>] [--out <out.json>]');
     process.exit(2);
   }
 
@@ -128,7 +137,7 @@ function main(){
   const orion = readJsonSafe(orionPath);
 
   const outObj = version === 'v2'
-    ? buildV2(atlas, helios, orion, readJsonSafe(atlasAttPath || ''), readJsonSafe(heliosStabilityPath || ''))
+    ? buildV2(atlas, helios, orion, readJsonSafe(atlasAttPath || ''), readJsonSafe(heliosStabilityPath || ''), readJsonSafe(ex10StatusPath || ''))
     : buildV1(atlas, helios, orion);
 
   fs.writeFileSync(outPath, JSON.stringify(outObj,null,2));

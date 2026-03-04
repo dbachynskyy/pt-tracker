@@ -34,6 +34,17 @@ export interface ReadinessFailureReport {
   }>;
 }
 
+export interface CompactGateSummary {
+  schemaVersion: 'orion.readiness.gate.v1';
+  threshold_profile_version: string;
+  exercises: Array<{
+    exercise: ExerciseId;
+    gate_pass: boolean;
+    fail_reasons: string[];
+    threshold_profile_version: string;
+  }>;
+}
+
 const IDS: ExerciseId[] = [
   'squat','pushup','sit_to_stand','lunge','calf_raise','glute_bridge','shoulder_abduction','heel_raise','knee_extension','plank_hold',
 ];
@@ -142,6 +153,19 @@ export function aggregateReadinessFailures(snapshots: SessionTelemetrySnapshot[]
     generatedAt: new Date(0).toISOString(),
     totals: { sessions: snapshots.length, exercisesObserved: observed, failures },
     byExercise,
+  };
+}
+
+export function buildCompactGateSummary(report: ReadinessFailureReport): CompactGateSummary {
+  return {
+    schemaVersion: 'orion.readiness.gate.v1',
+    threshold_profile_version: report.threshold_profile_version,
+    exercises: IDS.map((id) => ({
+      exercise: id,
+      gate_pass: report.byExercise[id]?.quality?.gate_pass ?? false,
+      fail_reasons: report.byExercise[id]?.quality?.gate_fail_reasons ?? ['MISSING_EXERCISE'],
+      threshold_profile_version: report.threshold_profile_version,
+    })),
   };
 }
 

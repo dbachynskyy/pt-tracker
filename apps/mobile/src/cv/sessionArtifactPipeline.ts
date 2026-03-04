@@ -1,6 +1,7 @@
 import { EXERCISE_IDS, type ExerciseId } from './exerciseRegistry';
-import { aggregateReadinessFailures, renderReadinessFailureReportJson, writeOrionReadinessArtifact, type SessionTelemetrySnapshot } from './readinessReport';
+import { aggregateReadinessFailures, buildCompactGateSummary, renderReadinessFailureReportJson, writeOrionReadinessArtifact, type SessionTelemetrySnapshot } from './readinessReport';
 import type { ExerciseTelemetry, SessionTelemetryTracker } from './sessionTelemetry';
+import { writeFileSync } from 'fs';
 
 function emptyTelemetry(exerciseId: ExerciseId): ExerciseTelemetry {
   return {
@@ -35,10 +36,15 @@ export class ReadinessArtifactPipeline {
 
     const report = aggregateReadinessFailures(this.snapshots);
     const json = renderReadinessFailureReportJson(this.snapshots);
+    const compact = buildCompactGateSummary(report);
+    const compactJson = JSON.stringify(compact, null, 2);
 
-    if (params.outputPath) writeOrionReadinessArtifact(params.outputPath, this.snapshots);
+    if (params.outputPath) {
+      writeOrionReadinessArtifact(params.outputPath, this.snapshots);
+      writeFileSync(`${params.outputPath}.gate-summary.json`, `${compactJson}\n`, 'utf8');
+    }
 
-    return { snapshot, report, json };
+    return { snapshot, report, json, compact, compactJson };
   }
 
   getSnapshots(): SessionTelemetrySnapshot[] {

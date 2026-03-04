@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "test": "jest --runInBand",
-    "test:cv": "jest --testPathPattern=cv --runInBand"
+    "test:cv": "jest --testPathPattern=cv --runInBand",
+    "check:readiness-gate": "node scripts/check-readiness-gate.js"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

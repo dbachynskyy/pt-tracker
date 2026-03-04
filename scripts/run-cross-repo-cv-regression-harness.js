@@ -5,21 +5,6 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = process.cwd();
-const args = process.argv.slice(2);
-const arg = (name, dflt = null) => {
-  const i = args.indexOf(name);
-  return i >= 0 ? args[i + 1] : dflt;
-};
-
-const mode = arg('--mode', 'auto'); // fixtures|live|auto
-const ATLAS_DIR = arg('--atlas-dir', process.env.ATLAS_DIR || '/tmp/pt-atlas');
-const HELIOS_DIR = arg('--helios-dir', process.env.HELIOS_DIR || '/tmp/pt-helios');
-const outJson = arg('--out', path.join(ROOT, 'artifacts', 'cross-repo-cv-regression.json'));
-const outMd = arg('--out-md', path.join(ROOT, 'artifacts', 'cross-repo-cv-regression.md'));
-
-function readJson(p) { return JSON.parse(fs.readFileSync(p, 'utf8')); }
-function exists(p) { return fs.existsSync(p); }
-function norm(s) { return String(s || '').trim().toLowerCase().replace(/[\s-]+/g, '_'); }
 
 const TAXONOMY = {
   MISSING_REPO: 'required repository path missing',
@@ -29,23 +14,59 @@ const TAXONOMY = {
   MISSING_TEST_SIGNAL: 'exercise missing minimum test coverage signal',
 };
 
-function parseAtlasSelectorExposure(blockers) {
-  const todo = path.join(ATLAS_DIR, 'TODO_EXERCISES.md');
-  const out = new Set();
-  if (!exists(ATLAS_DIR)) blockers.push({ code: 'MISSING_REPO', detail: `ATLAS_DIR missing: ${ATLAS_DIR}` });
-  if (!exists(todo)) {
-    blockers.push({ code: 'MISSING_CONTRACT', detail: `Atlas selector contract missing: ${todo}` });
-    return out;
-  }
-  const t = fs.readFileSync(todo, 'utf8');
-  const impl = t.split(/\n##\s+|\nInfra:/i)[0];
-  for (const m of impl.matchAll(/- \[[xX]\]\s+([a-zA-Z0-9_\-]+)/g)) out.add(norm(m[1]));
-  return out;
+function readJson(p) { return JSON.parse(fs.readFileSync(p, 'utf8')); }
+function exists(p) { return fs.existsSync(p); }
+function norm(s) { return String(s || '').trim().toLowerCase().replace(/[\s-]+/g, '_'); }
+
+function pushBlocker(blockers, code, detail) { blockers.push({ code, detail }); }
+
+function findMatchesInFile(filePath, patterns) {
+  const matches = [];
+  if (!exists(filePath)) return matches;
+  const text = fs.readFileSync(filePath, 'utf8');
+  const lines = text.split('\n');
+  lines.forEach((line, i) => {
+    for (const p of patterns) {
+      if (!p) continue;
+      if (line.includes(p)) {
+        matches.push({ file: filePath, line: i + 1, pattern: p, snippet: line.trim().slice(0, 180) });
+      }
+    }
+  });
+  return matches;
 }
 
-function parseHeliosAnalyzerRouting(blockers, contract) {
-  const out = new Set();
-  const srcRoot = path.join(HELIOS_DIR, 'apps', 'mobile', 'src');
+function parseAtlasSelectorExposure(blockers, atlasDir) {
+  const todo = path.join(atlasDir, 'TODO_EXERCISES.md');
+  const ids = new Set();
+  const evidenceById = {};
+
+  if (!exists(atlasDir)) pushBlocker(blockers, 'MISSING_REPO', `ATLAS_DIR missing: ${atlasDir}`);
+  if (!exists(todo)) {
+    pushBlocker(blockers, 'MISSING_CONTRACT', `Atlas selector contract missing: ${todo}`);
+    return { ids, evidenceById };
+  }
+
+  const t = fs.readFileSync(todo, 'utf8');
+  const impl = t.split(/\n##\s+|\nInfra:/i)[0];
+  const lines = impl.split('\n');
+  lines.forEach((line, i) => {
+    const m = line.match(/- \[[xX]\]\s+([a-zA-Z0-9_\-]+)/);
+    if (!m) return;
+    const id = norm(m[1]);
+    ids.add(id);
+    evidenceById[id] = evidenceById[id] || [];
+    evidenceById[id].push({ file: todo, line: i + 1, pattern: m[1], snippet: line.trim().slice(0, 180) });
+  });
+
+  return { ids, evidenceById };
+}
+
+function parseHeliosAnalyzerRouting(blockers, contract, heliosDir) {
+  const ids = new Set();
+  const evidenceById = {};
+
+  const srcRoot = path.join(heliosDir, 'apps', 'mobile', 'src');
   const cvEx = path.join(srcRoot, 'cv', 'exercises');
   const routingCandidates = [
     path.join(srcRoot, 'screens', 'SessionScreen.tsx'),
@@ -54,75 +75,97 @@ function parseHeliosAnalyzerRouting(blockers, contract) {
     path.join(srcRoot, 'cv', 'routing.ts'),
   ];
 
-  if (!exists(HELIOS_DIR)) blockers.push({ code: 'MISSING_REPO', detail: `HELIOS_DIR missing: ${HELIOS_DIR}` });
+  if (!exists(heliosDir)) pushBlocker(blockers, 'MISSING_REPO', `HELIOS_DIR missing: ${heliosDir}`);
   if (!exists(cvEx)) {
-    blockers.push({ code: 'MISSING_CONTRACT', detail: `Helios exercise analyzer dir missing: ${cvEx}` });
-    return out;
+    pushBlocker(blockers, 'MISSING_CONTRACT', `Helios exercise analyzer dir missing: ${cvEx}`);
+    return { ids, evidenceById };
   }
 
-  const analyzerById = new Map();
-  for (const f of fs.readdirSync(cvEx)) {
-    if (!f.endsWith('.ts')) continue;
-    const txt = fs.readFileSync(path.join(cvEx, f), 'utf8');
-    const idm = txt.match(/exerciseId\s*(?::[^=]+)?=\s*['"]([^'"]+)['"]/);
-    const clsm = txt.match(/export\s+class\s+([A-Za-z0-9_]+)\s+/);
-    if (idm && clsm) analyzerById.set(norm(idm[1]), clsm[1]);
-  }
-
-  const routingText = routingCandidates.filter(exists).map((p) => fs.readFileSync(p, 'utf8')).join('\n\n');
-  if (!routingText.trim()) {
-    blockers.push({ code: 'MISSING_CONTRACT', detail: `No routing source found in candidates: ${routingCandidates.join(', ')}` });
-    return out;
+  const availableRoutingFiles = routingCandidates.filter(exists);
+  if (!availableRoutingFiles.length) {
+    pushBlocker(blockers, 'MISSING_CONTRACT', `No routing source found in candidates: ${routingCandidates.join(', ')}`);
+    return { ids, evidenceById };
   }
 
   for (const ex of contract.exercises) {
     const id = norm(ex.id);
-    const analyzerClass = ex.analyzerClass || analyzerById.get(id);
-    const hasId = routingText.includes(`"${id}"`) || routingText.includes(`'${id}'`);
-    const hasClass = analyzerClass ? routingText.includes(analyzerClass) : false;
-    if (hasId || hasClass) out.add(id);
+    const acceptedIds = (ex.acceptedRoutingIds || [id]).map(norm);
+    const acceptedClasses = (ex.acceptedAnalyzerClasses || [ex.analyzerClass]).filter(Boolean);
+    const idPatterns = acceptedIds.flatMap((x) => [`'${x}'`, `"${x}"`]);
+    const patterns = [...idPatterns, ...acceptedClasses];
+
+    let exMatches = [];
+    for (const file of availableRoutingFiles) {
+      exMatches = exMatches.concat(findMatchesInFile(file, patterns));
+    }
+
+    if (exMatches.length) {
+      ids.add(id);
+      evidenceById[id] = exMatches;
+    }
   }
 
-  return out;
+  return { ids, evidenceById };
 }
 
-function parseHeliosCoverageSignal(blockers, contract) {
-  const out = new Set();
-  const testsDir = path.join(HELIOS_DIR, 'apps', 'mobile', 'src', 'cv', '__tests__');
+function parseHeliosCoverageSignal(blockers, contract, heliosDir) {
+  const ids = new Set();
+  const evidenceById = {};
+  const testsDir = path.join(heliosDir, 'apps', 'mobile', 'src', 'cv', '__tests__');
+
   if (!exists(testsDir)) {
-    blockers.push({ code: 'MISSING_CONTRACT', detail: `Helios test dir missing: ${testsDir}` });
-    return out;
+    pushBlocker(blockers, 'MISSING_CONTRACT', `Helios test dir missing: ${testsDir}`);
+    return { ids, evidenceById };
   }
 
   const files = fs.readdirSync(testsDir).filter((f) => f.endsWith('.ts'));
   const fileSet = new Set(files);
-  const textByFile = new Map(files.map((f) => [f, fs.readFileSync(path.join(testsDir, f), 'utf8')]));
 
   for (const ex of contract.exercises) {
     const id = norm(ex.id);
-    const sigs = ex.testSignals || [];
-    let hit = sigs.some((s) => fileSet.has(s));
-    if (!hit && ex.analyzerClass) {
-      for (const txt of textByFile.values()) {
-        if (txt.includes(ex.analyzerClass) || txt.includes(`'${id}'`) || txt.includes(`"${id}"`)) { hit = true; break; }
+    const acceptedIds = (ex.acceptedRoutingIds || [id]).map(norm);
+    const acceptedClasses = (ex.acceptedAnalyzerClasses || [ex.analyzerClass]).filter(Boolean);
+    const testSignals = ex.testSignals || [];
+    let matches = [];
+
+    for (const sig of testSignals) {
+      if (fileSet.has(sig)) {
+        matches.push({ file: path.join(testsDir, sig), line: 1, pattern: sig, snippet: 'test signal file present' });
       }
     }
-    if (hit) out.add(id);
+
+    if (!matches.length) {
+      const patterns = [...acceptedClasses, ...acceptedIds.flatMap((x) => [`'${x}'`, `"${x}"`])];
+      for (const f of files) {
+        matches = matches.concat(findMatchesInFile(path.join(testsDir, f), patterns));
+      }
+    }
+
+    if (matches.length) {
+      ids.add(id);
+      evidenceById[id] = matches;
+    }
   }
 
-  return out;
+  return { ids, evidenceById };
 }
 
-function loadFixture() {
-  const j = readJson(path.join(ROOT, 'schemas', 'cv', 'cross-repo-regression.fixture.json'));
+function loadFixture(rootDir) {
+  const j = readJson(path.join(rootDir, 'schemas', 'cv', 'cross-repo-regression.fixture.json'));
+  const mk = (ids, channel) => {
+    const set = new Set((ids || []).map(norm));
+    const evidence = {};
+    for (const id of set) evidence[id] = [{ file: 'fixture', line: 1, pattern: id, snippet: `${channel} fixture` }];
+    return { ids: set, evidenceById: evidence };
+  };
   return {
-    selector: new Set((j.selectorExposure || []).map(norm)),
-    routing: new Set((j.analyzerRouting || []).map(norm)),
-    coverage: new Set((j.testCoverageSignal || []).map(norm)),
+    selector: mk(j.selectorExposure, 'selector'),
+    routing: mk(j.analyzerRouting, 'routing'),
+    coverage: mk(j.testCoverageSignal, 'coverage'),
   };
 }
 
-function evaluate(contract, selector, routing, coverage, blockers, modeUsed) {
+function evaluate(contract, selectorInfo, routingInfo, coverageInfo, blockers, modeUsed) {
   const rows = [];
   const failures = [];
 
@@ -130,9 +173,14 @@ function evaluate(contract, selector, routing, coverage, blockers, modeUsed) {
     const id = norm(ex.id);
     const row = {
       exerciseId: id,
-      selectorExposure: selector.has(id),
-      analyzerRouting: routing.has(id),
-      minimumTestCoverageSignal: coverage.has(id),
+      selectorExposure: selectorInfo.ids.has(id),
+      analyzerRouting: routingInfo.ids.has(id),
+      minimumTestCoverageSignal: coverageInfo.ids.has(id),
+      evidence: {
+        selectorExposure: selectorInfo.evidenceById[id] || [],
+        analyzerRouting: routingInfo.evidenceById[id] || [],
+        minimumTestCoverageSignal: coverageInfo.evidenceById[id] || [],
+      },
       status: 'PASS',
       failureCodes: [],
     };
@@ -140,6 +188,7 @@ function evaluate(contract, selector, routing, coverage, blockers, modeUsed) {
     if (!row.selectorExposure) row.failureCodes.push('MISSING_SELECTOR_EXPOSURE');
     if (!row.analyzerRouting) row.failureCodes.push('MISSING_ANALYZER_ROUTING');
     if (!row.minimumTestCoverageSignal) row.failureCodes.push('MISSING_TEST_SIGNAL');
+
     if (row.failureCodes.length) {
       row.status = 'FAIL';
       failures.push({ exerciseId: id, failureCodes: row.failureCodes });
@@ -149,7 +198,6 @@ function evaluate(contract, selector, routing, coverage, blockers, modeUsed) {
 
   const blocked = modeUsed === 'live' && blockers.length > 0;
   const status = blocked ? 'BLOCKED' : (failures.length === 0 ? 'PASS' : 'FAIL');
-
   return { status, rows, failures };
 }
 
@@ -166,10 +214,25 @@ function renderMd(report) {
     '| Exercise | Selector exposure | Analyzer routing | Min test signal | Status | Codes |',
     '|---|---:|---:|---:|---|---|',
   ];
+
   for (const r of report.results) {
     lines.push(`| ${r.exerciseId} | ${r.selectorExposure ? '✅' : '❌'} | ${r.analyzerRouting ? '✅' : '❌'} | ${r.minimumTestCoverageSignal ? '✅' : '❌'} | ${r.status} | ${r.failureCodes.join(', ') || '—'} |`);
   }
-  lines.push('', '## Blocker taxonomy', '');
+
+  lines.push('', '## Evidence snapshot', '');
+  for (const r of report.results) {
+    lines.push(`### ${r.exerciseId}`);
+    for (const [k, ev] of Object.entries(r.evidence)) {
+      if (!ev.length) {
+        lines.push(`- ${k}: none`);
+      } else {
+        lines.push(`- ${k}: ${ev[0].file}:${ev[0].line} (${ev[0].pattern})`);
+      }
+    }
+    lines.push('');
+  }
+
+  lines.push('## Blocker taxonomy', '');
   for (const [k, v] of Object.entries(report.taxonomy)) lines.push(`- ${k}: ${v}`);
 
   if (report.blockers.length) {
@@ -185,36 +248,43 @@ function renderMd(report) {
   return lines.join('\n');
 }
 
-function main() {
-  const contract = readJson(path.join(ROOT, 'schemas', 'cv', 'cross-repo-regression.contract.json'));
+function runHarness({ mode, atlasDir, heliosDir, rootDir = ROOT, outJson, outMd }) {
+  const contract = readJson(path.join(rootDir, 'schemas', 'cv', 'cross-repo-regression.contract.json'));
   const blockers = [];
   let modeUsed = mode;
 
-  let selector = new Set();
-  let routing = new Set();
-  let coverage = new Set();
+  let selectorInfo = { ids: new Set(), evidenceById: {} };
+  let routingInfo = { ids: new Set(), evidenceById: {} };
+  let coverageInfo = { ids: new Set(), evidenceById: {} };
 
   if (mode === 'fixtures') {
-    ({ selector, routing, coverage } = loadFixture());
+    const fx = loadFixture(rootDir);
+    selectorInfo = fx.selector;
+    routingInfo = fx.routing;
+    coverageInfo = fx.coverage;
   } else if (mode === 'live') {
-    selector = parseAtlasSelectorExposure(blockers);
-    routing = parseHeliosAnalyzerRouting(blockers, contract);
-    coverage = parseHeliosCoverageSignal(blockers, contract);
+    selectorInfo = parseAtlasSelectorExposure(blockers, atlasDir);
+    routingInfo = parseHeliosAnalyzerRouting(blockers, contract, heliosDir);
+    coverageInfo = parseHeliosCoverageSignal(blockers, contract, heliosDir);
   } else {
-    const canLive = exists(ATLAS_DIR) && exists(HELIOS_DIR);
+    const canLive = exists(atlasDir) && exists(heliosDir);
     if (canLive) {
       modeUsed = 'live';
-      selector = parseAtlasSelectorExposure(blockers);
-      routing = parseHeliosAnalyzerRouting(blockers, contract);
-      coverage = parseHeliosCoverageSignal(blockers, contract);
+      selectorInfo = parseAtlasSelectorExposure(blockers, atlasDir);
+      routingInfo = parseHeliosAnalyzerRouting(blockers, contract, heliosDir);
+      coverageInfo = parseHeliosCoverageSignal(blockers, contract, heliosDir);
     } else {
       modeUsed = 'fixtures';
-      ({ selector, routing, coverage } = loadFixture());
-      blockers.push({ code: 'MISSING_REPO', detail: `auto fallback to fixtures; expected ATLAS_DIR=${ATLAS_DIR}, HELIOS_DIR=${HELIOS_DIR}` });
+      const fx = loadFixture(rootDir);
+      selectorInfo = fx.selector;
+      routingInfo = fx.routing;
+      coverageInfo = fx.coverage;
+      pushBlocker(blockers, 'MISSING_REPO', `auto fallback to fixtures; expected ATLAS_DIR=${atlasDir}, HELIOS_DIR=${heliosDir}`);
     }
   }
 
-  const evalResult = evaluate(contract, selector, routing, coverage, blockers, modeUsed);
+  const evalResult = evaluate(contract, selectorInfo, routingInfo, coverageInfo, blockers, modeUsed);
+
   const report = {
     generatedAt: new Date().toISOString(),
     mode: modeUsed,
@@ -234,6 +304,24 @@ function main() {
   fs.writeFileSync(outJson, JSON.stringify(report, null, 2));
   fs.writeFileSync(outMd, renderMd(report));
 
+  return report;
+}
+
+function main() {
+  const args = process.argv.slice(2);
+  const arg = (name, dflt = null) => {
+    const i = args.indexOf(name);
+    return i >= 0 ? args[i + 1] : dflt;
+  };
+
+  const mode = arg('--mode', 'auto');
+  const atlasDir = arg('--atlas-dir', process.env.ATLAS_DIR || '/tmp/pt-atlas');
+  const heliosDir = arg('--helios-dir', process.env.HELIOS_DIR || '/tmp/pt-helios');
+  const outJson = arg('--out', path.join(ROOT, 'artifacts', 'cross-repo-cv-regression.json'));
+  const outMd = arg('--out-md', path.join(ROOT, 'artifacts', 'cross-repo-cv-regression.md'));
+
+  const report = runHarness({ mode, atlasDir, heliosDir, outJson, outMd });
+
   console.log(`Cross-repo CV regression harness status: ${report.status}`);
   console.log(`JSON: ${outJson}`);
   console.log(`MD:   ${outMd}`);
@@ -243,4 +331,18 @@ function main() {
   process.exit(1);
 }
 
-main();
+if (require.main === module) {
+  main();
+}
+
+module.exports = {
+  TAXONOMY,
+  norm,
+  findMatchesInFile,
+  parseAtlasSelectorExposure,
+  parseHeliosAnalyzerRouting,
+  parseHeliosCoverageSignal,
+  loadFixture,
+  evaluate,
+  runHarness,
+};

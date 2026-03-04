@@ -1,6 +1,7 @@
 import type { ExerciseId } from './exerciseRegistry';
 import type { ExerciseTelemetry } from './sessionTelemetry';
 import { writeFileSync } from 'fs';
+import { READINESS_THRESHOLDS, THRESHOLD_PROFILE_VERSION, type ExerciseReadinessThreshold } from './readinessThresholds';
 
 export interface SessionTelemetrySnapshot {
   sessionId: string;
@@ -19,6 +20,7 @@ export interface ExerciseQualityGate {
 
 export interface ReadinessFailureReport {
   schemaVersion: 'orion.readiness.v1';
+  threshold_profile_version: string;
   generatedAt: string;
   totals: {
     sessions: number;
@@ -56,7 +58,7 @@ function qualityGate(summary: {
   confidenceP90Values: number[];
   repSignalPresent: boolean;
   statusReason: string;
-}): ExerciseQualityGate {
+}, threshold: ExerciseReadinessThreshold): ExerciseQualityGate {
   const q: ExerciseQualityGate = {
     sample_count: summary.sampleCount,
     confidence_p50: median(summary.confidenceP50Values),
@@ -66,11 +68,11 @@ function qualityGate(summary: {
     gate_pass: true,
     gate_fail_reasons: [],
   };
-  if (q.sample_count <= 0) q.gate_fail_reasons.push('NO_SAMPLES');
-  if (q.confidence_p50 <= 0) q.gate_fail_reasons.push('LOW_CONFIDENCE_P50');
-  if (q.confidence_p90 <= 0) q.gate_fail_reasons.push('LOW_CONFIDENCE_P90');
-  if (!q.rep_signal_present) q.gate_fail_reasons.push('NO_REP_SIGNAL');
-  if (q.status_reason && q.status_reason !== 'READY') q.gate_fail_reasons.push(`STATUS_${q.status_reason}`);
+  if (q.sample_count < threshold.minSamples) q.gate_fail_reasons.push('NO_SAMPLES');
+  if (q.confidence_p50 < threshold.minConfidenceP50) q.gate_fail_reasons.push('LOW_CONFIDENCE_P50');
+  if (q.confidence_p90 < threshold.minConfidenceP90) q.gate_fail_reasons.push('LOW_CONFIDENCE_P90');
+  if (threshold.requireRepSignal && !q.rep_signal_present) q.gate_fail_reasons.push('NO_REP_SIGNAL');
+  if (!threshold.allowedStatus.includes(q.status_reason)) q.gate_fail_reasons.push(`STATUS_${q.status_reason}`);
   q.gate_pass = q.gate_fail_reasons.length === 0;
   return q;
 }
@@ -131,11 +133,12 @@ export function aggregateReadinessFailures(snapshots: SessionTelemetrySnapshot[]
   }
 
   for (const id of IDS) {
-    byExercise[id].quality = qualityGate(qualityAcc[id]);
+    byExercise[id].quality = qualityGate(qualityAcc[id], READINESS_THRESHOLDS[id]);
   }
 
   return {
     schemaVersion: 'orion.readiness.v1',
+    threshold_profile_version: THRESHOLD_PROFILE_VERSION,
     generatedAt: new Date(0).toISOString(),
     totals: { sessions: snapshots.length, exercisesObserved: observed, failures },
     byExercise,
@@ -145,6 +148,13 @@ export function aggregateReadinessFailures(snapshots: SessionTelemetrySnapshot[]
 export function validateOrionReadinessArtifact(report: ReadinessFailureReport): { ok: boolean; errors: string[] } {
   const errors: string[] = [];
   if (report.schemaVersion !== 'orion.readiness.v1') errors.push('INVALID_SCHEMA_VERSION');
+  if (!report.threshold_profile_version) errors.push('MISSING_THRESHOLD_PROFILE_VERSION');
+
+  for (const id of IDS) {
+    if (!(id in READINESS_THRESHOLDS)) {
+      errors.push(`MISSING_EXERCISE_THRESHOLD:${id}`);
+    }
+  }
 
   for (const id of IDS) {
     const row = report.byExercise[id];

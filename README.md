@@ -110,3 +110,18 @@ node scripts/cv-diagnose-failures.js jest-cv-results.local.json
 ```
 
 See `docs/cv/` for 10-exercise acceptance gates, calibration protocol, merge plan, and release checklist.
+
+
+### Atlas+Helios Integration Validation Pack
+
+```bash
+# CI-ready (no external creds): fixture-based parity smoke
+bash scripts/run-atlas-helios-smoke-matrix.sh fixtures
+
+# Live parity check (fails on missing contracts/paths with blocker report)
+ATLAS_DIR=/tmp/pt-atlas HELIOS_DIR=/tmp/pt-helios   node scripts/check-atlas-helios-exercise-parity.js --mode live
+```
+
+Artifacts:
+- `artifacts/atlas-helios-parity.json`
+- `artifacts/atlas-helios-parity.md`

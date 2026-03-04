@@ -235,3 +235,5 @@ Both documents must be kept in sync when new exercises or thresholds are added.
 - `docs/cv/FAILURE_DIAGNOSTICS.md`
 - `docs/cv/REAL_CV_RELEASE_CHECKLIST.md`
 - `docs/cv/MERGE_PLAN_ATLAS_HELIOS.md`
+
+- `docs/cv/ATLAS_HELIOS_PARITY_GATE.md`

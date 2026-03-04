@@ -180,6 +180,31 @@ jobs:
           if-no-files-found: warn
 
   # ─────────────────────────────────────────────
+
+  # ─────────────────────────────────────────────
+  # 7. Atlas+Helios fixture parity smoke (no external creds)
+  # ─────────────────────────────────────────────
+  atlas-helios-fixture-smoke:
+    name: Atlas+Helios fixture parity smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Run fixture-based parity smoke
+        run: bash scripts/run-atlas-helios-smoke-matrix.sh fixtures
+      - name: Upload parity artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-helios-parity-fixture-${{ github.run_id }}
+          path: |
+            artifacts/atlas-helios-parity.json
+            artifacts/atlas-helios-parity.md
+          retention-days: 30
+          if-no-files-found: warn
+
   # All-green gate (branch protection target)
   # ─────────────────────────────────────────────
   ci-gate:
@@ -192,5 +217,6 @@ jobs:
       - artefact-check
       - shellcheck
       - cv-quality-gate
+      - atlas-helios-fixture-smoke
     steps:
       - run: echo "All CI checks passed."

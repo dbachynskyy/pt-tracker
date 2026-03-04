@@ -32,3 +32,20 @@ Integrate Atlas exercise definitions with Helios analyzer outputs without regres
 - Staging smoke sessions for all 10 exercises PASS.
 - No mismatch in atlas<->helios ID mapping table.
 - `artifacts/summary.json` attached to merge PR.
+
+
+## Validation commands
+
+```bash
+# Fixture smoke (CI-safe, no cross-repo checkout required)
+bash scripts/run-atlas-helios-smoke-matrix.sh fixtures
+
+# Live cross-repo parity gate (strict)
+ATLAS_DIR=/tmp/pt-atlas HELIOS_DIR=/tmp/pt-helios \
+  node scripts/check-atlas-helios-exercise-parity.js --mode live
+```
+
+Exit codes:
+- `0` PASS
+- `1` parity mismatch / 10-of-10 mismatch
+- `2` BLOCKED (missing cross-repo paths/contracts in live mode)

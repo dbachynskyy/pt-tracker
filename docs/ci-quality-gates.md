@@ -10,7 +10,7 @@
 ## Overview
 
 Every pull request targeting `main` runs the full CV detector test matrix through the
-`cv-quality-gate` CI job. The job enforces three hard thresholds. If any threshold is
+`cv-quality-gate` CI job. The job enforces four hard thresholds. If any threshold is
 violated the job exits non-zero, blocking the PR merge. Diagnostics artifacts are
 uploaded on every run — pass or fail — so failures can be triaged without re-running CI.
 
@@ -23,6 +23,7 @@ uploaded on every run — pass or fail — so failures can be triaged without re
 | **ACCURACY_FLOOR** | Scenario pass rate | 100% (all describe-blocks must pass) | `scripts/cv-generate-artifacts.js` |
 | **FALSE_POSITIVE_CAP** | False-positive guard test failures | 0 failures | Tests whose title contains `"does NOT flag"`, `"NOT flagged"`, `"good form"`, etc. |
 | **LOCKOUT_CORRECTNESS** | Anti-cheat block pass rate | 100% | Describe-blocks matching `velocity ceiling`, `debounce window`, `warmup gate`, `occlusion gating`, `session continuity` |
+| **EXERCISE_COVERAGE** | Required exercise coverage | 10/10 exercises with passing scenarios | `schemas/cv/exercise-gates.json` alias mapping + scenario pass status |
 
 ### Threshold rationale
 
@@ -58,7 +59,8 @@ Machine-readable gate verdict. Top-level fields:
   "thresholds": {
     "ACCURACY_FLOOR":      { "required": "100%", "status": "PASS" | "FAIL" },
     "FALSE_POSITIVE_CAP":  { "required": "0 failures", "status": "PASS" | "FAIL" },
-    "LOCKOUT_CORRECTNESS": { "required": "100%", "status": "PASS" | "FAIL" }
+    "LOCKOUT_CORRECTNESS": { "required": "100%", "status": "PASS" | "FAIL" },
+    "EXERCISE_COVERAGE": { "required": "10 exercises", "status": "PASS" | "FAIL" }
   },
   "metrics": {
     "totalScenarios": 40,  "passedScenarios": 40, "failedScenarios": 0,
@@ -224,3 +226,12 @@ documents the *CI enforcement mechanism* — how those criteria are checked auto
 on every PR and what to do when they fail.
 
 Both documents must be kept in sync when new exercises or thresholds are added.
+
+
+## Real-CV rollout references
+
+- `docs/cv/CV_10_EXERCISE_ACCEPTANCE_GATES.md`
+- `docs/cv/CALIBRATION_PROTOCOL.md`
+- `docs/cv/FAILURE_DIAGNOSTICS.md`
+- `docs/cv/REAL_CV_RELEASE_CHECKLIST.md`
+- `docs/cv/MERGE_PLAN_ATLAS_HELIOS.md`

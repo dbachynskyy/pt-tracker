@@ -99,3 +99,14 @@ npx ajv validate -s schemas/events.schema.json -d path/to/event.json
 | `docs/risk_register.md` | Risk register with mitigations |
 | `schemas/events.schema.json` | JSON Schema draft-07 for all analytics events |
 
+
+
+### CV Matrix + Diagnostics
+Run full CV gates, emit artifacts, and print categorized failure diagnostics on regressions:
+
+```bash
+bash scripts/run-cv-matrix.sh
+node scripts/cv-diagnose-failures.js jest-cv-results.local.json
+```
+
+See `docs/cv/` for 10-exercise acceptance gates, calibration protocol, merge plan, and release checklist.

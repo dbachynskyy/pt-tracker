@@ -38,11 +38,12 @@ function run(obj: any, evidencePath?: string) {
   const input = join(d, 'in.json');
   const output = join(d, 'out.json');
   const evidenceOut = join(d, 'evidence-out.json');
+  const fallbackOut = join(d, 'fallback-plan.json');
+  const mdOut = join(d, 'summary.md');
   writeFileSync(input, JSON.stringify(obj, null, 2));
-  const args = [SCRIPT, input, output];
-  if (evidencePath) args.push(evidencePath, evidenceOut);
+  const args = [SCRIPT, input, output, evidencePath || '', evidenceOut, fallbackOut, mdOut];
   const res = spawnSync(process.execPath, args, { encoding: 'utf8' });
-  return { ...res, output, evidenceOut };
+  return { ...res, output, evidenceOut, fallbackOut, mdOut };
 }
 
 describe('exercise readiness matrix emitter', () => {
@@ -54,13 +55,16 @@ describe('exercise readiness matrix emitter', () => {
     const ids = out.exercises.map((e: any) => e.exercise).sort();
     expect(ids).toEqual(['calf_raise','glute_bridge','heel_raise','knee_extension','lunge','plank','pushup','shoulder_abduction','sit_to_stand','squat'].sort());
     expect(out.exercises.every((e: any) => e.gate_pass === true)).toBe(true);
+
+    const plan = JSON.parse(readFileSync(res.fallbackOut, 'utf8'));
+    expect(plan.schemaVersion).toBe('helios-exercise-fallback-plan.v1');
   });
 
   it.each([
-    ['AUTH_BLOCKER', 'AUTH_UNAUTHORIZED_401', join(EVID, 'auth.log')],
-    ['CREDITS_BLOCKER', 'CREDITS_QUOTA_EXCEEDED', join(EVID, 'credits.log')],
-    ['RATE_LIMIT_BLOCKER', 'RATE_LIMIT_429', join(EVID, 'rate.log')],
-  ])('flags single-exercise %s with evidence + fallback options', (blocker, status, evidencePath) => {
+    ['AUTH_BLOCKER', 'AUTH_UNAUTHORIZED_401', join(EVID, 'auth.log'), 'REAUTH', 'hard'],
+    ['CREDITS_BLOCKER', 'CREDITS_QUOTA_EXCEEDED', join(EVID, 'credits.log'), 'TOP_UP_CREDITS', 'hard'],
+    ['RATE_LIMIT_BLOCKER', 'RATE_LIMIT_429', join(EVID, 'rate.log'), 'BACKOFF_RETRY', 'soft'],
+  ])('flags single-exercise %s with evidence + fallback options', (blocker, status, evidencePath, action, severity) => {
     const art = baseArtifact();
     art.byExercise.squat.quality.status_reason = status;
     art.byExercise.squat.quality.gate_pass = false;
@@ -75,6 +79,23 @@ describe('exercise readiness matrix emitter', () => {
 
     const ev = JSON.parse(readFileSync(res.evidenceOut, 'utf8'));
     expect(ev.schemaVersion).toBe('helios-exercise-readiness-evidence.v1');
+
+    const plan = JSON.parse(readFileSync(res.fallbackOut, 'utf8'));
+    const sp = plan.exercises.find((e: any) => e.exercise === 'squat');
+    expect(sp.recommended_action).toBe(action);
+    expect(sp.severity).toBe(severity);
+  });
+
+  it('respects mixed blocker precedence (AUTH over CREDITS/RATE/QUALITY)', () => {
+    const art = baseArtifact();
+    art.byExercise.squat.quality.status_reason = 'AUTH_UNAUTHORIZED_401 CREDITS_QUOTA_EXCEEDED RATE_LIMIT_429';
+    art.byExercise.squat.quality.gate_pass = false;
+    const res = run(art, join(EVID, 'mixed.log'));
+    expect(res.status).toBe(0);
+    const plan = JSON.parse(readFileSync(res.fallbackOut, 'utf8'));
+    const sq = plan.exercises.find((e: any) => e.exercise === 'squat');
+    expect(sq.recommended_action).toBe('REAUTH');
+    expect(sq.severity).toBe('hard');
   });
 
   it('handles mixed blocker evidence', () => {
@@ -90,6 +111,18 @@ describe('exercise readiness matrix emitter', () => {
     const out = JSON.parse(readFileSync(res.output, 'utf8'));
     const blocked = out.exercises.flatMap((e: any) => e.blockers);
     expect(blocked).toEqual(expect.arrayContaining(['AUTH_BLOCKER','CREDITS_BLOCKER','RATE_LIMIT_BLOCKER']));
+  });
+
+  it('falls back to derived evidence when external evidence missing', () => {
+    const art = baseArtifact();
+    art.byExercise.squat.quality.status_reason = 'AUTH_UNAUTHORIZED_401';
+    art.byExercise.squat.quality.gate_pass = false;
+    const res = run(art);
+    expect(res.status).toBe(0);
+    const out = JSON.parse(readFileSync(res.output, 'utf8'));
+    const sq = out.exercises.find((e: any) => e.exercise === 'squat');
+    const auth = sq.blocker_catalog.find((b: any) => b.blocker === 'AUTH_BLOCKER');
+    expect(auth.evidence.source).toBe('derived_status');
   });
 
   it('fails malformed id set', () => {

@@ -347,3 +347,19 @@ Expected failure output examples:
 - `[readiness-trend] FAIL: missing baseline: ...`
 - `[readiness-trend] FAIL: 1 degraded exercise(s) exceeded threshold while gate_pass=true`
 - ` - pushup:score_drop:80->70`
+
+### Lane-level trend summary artifact
+
+Trend checker now also emits:
+
+- `artifacts/helios-readiness-trend-summary.v1.json`
+
+Fields:
+
+- `totals.improved_count|flat_count|degraded_count`
+- `totals.improved_rate|flat_rate|degraded_rate`
+- `median_delta`
+- `worst_deltas` (top 3 most negative)
+- `gated_degrade_incidents` (degraded + gate_pass=true + drop > threshold)
+
+CI semantics unchanged: fail **only** when `gated_degrade_incidents.length > 0`.

@@ -1,17 +1,17 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "version": 1,
+  "version": 2,
   "requiredExerciseCount": 10,
   "exercises": [
     { "id": "squat", "aliases": ["SquatAnalyzer", "squat"] },
     { "id": "pushup", "aliases": ["PushupAnalyzer", "push-up", "pushup"] },
+    { "id": "sit_to_stand", "aliases": ["SitToStandAnalyzer", "sit_to_stand", "sit-to-stand", "sts"] },
     { "id": "plank", "aliases": ["PlankAnalyzer", "plank"] },
-    { "id": "sitToStand", "aliases": ["SitToStandAnalyzer", "sit-to-stand", "sts"] },
     { "id": "lunge", "aliases": ["LungeAnalyzer", "lunge"] },
-    { "id": "bridge", "aliases": ["BridgeAnalyzer", "glute bridge", "bridge"] },
-    { "id": "clamshell", "aliases": ["ClamshellAnalyzer", "clam shell", "clamshell"] },
-    { "id": "heelRaise", "aliases": ["HeelRaiseAnalyzer", "heel raise", "calf raise"] },
-    { "id": "shoulderAbduction", "aliases": ["ShoulderAbductionAnalyzer", "shoulder abduction"] },
-    { "id": "birdDog", "aliases": ["BirdDogAnalyzer", "bird dog", "birddog"] }
+    { "id": "glute_bridge", "aliases": ["GluteBridgeAnalyzer", "glute_bridge", "glute bridge", "bridge"] },
+    { "id": "knee_extension", "aliases": ["KneeExtensionAnalyzer", "knee_extension", "knee extension"] },
+    { "id": "heel_raise", "aliases": ["HeelRaiseAnalyzer", "heel_raise", "heel raise"] },
+    { "id": "calf_raise", "aliases": ["CalfRaiseAnalyzer", "calf_raise", "calf raise"] },
+    { "id": "shoulder_abduction", "aliases": ["ShoulderAbductionAnalyzer", "shoulder_abduction", "shoulder abduction"] }
   ]
 }

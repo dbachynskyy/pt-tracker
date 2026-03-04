@@ -1,0 +1,15 @@
+{
+  "source": "fixture",
+  "exerciseIds": [
+    "squat",
+    "pushup",
+    "sit_to_stand",
+    "plank",
+    "lunge",
+    "glute_bridge",
+    "knee_extension",
+    "heel_raise",
+    "calf_raise",
+    "shoulder_abduction"
+  ]
+}

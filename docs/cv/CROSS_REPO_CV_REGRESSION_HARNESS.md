@@ -267,7 +267,7 @@ bash scripts/run-realcv-crosslane-orchestrator.sh
 ```
 
 Unified artifact:
-- `artifacts/realcv-crosslane-status.json`
+- `artifacts/realcv-lanes-status.v1.json`
 
 Behavior:
 - Runs Atlas/Helios readiness inputs + Orion rollout/master readiness flow

@@ -330,3 +330,20 @@ Expected failure output examples:
 - `[readiness-regression] FAIL: missing baseline: ...`
 - `[readiness-regression] FAIL: 1 regression(s) detected`
 - ` - pushup:GATE_PASS_FLIP|SCORE_DROP:90->60`
+
+## CI Trend Guard Command
+
+Compute trend bands (`improved|flat|degraded`) vs baseline and emit:
+`artifacts/helios-readiness-trend.v1.json`
+
+- `npm --workspace apps/mobile run check:readiness-trend -- <current.gate-summary.json> <baseline.gate-summary.json> [artifacts/helios-readiness-trend.v1.json]`
+
+CI failure policy:
+
+- Fail only when an exercise is `degraded` **and** current `gate_pass=true` **and** score drop exceeds threshold (`HELIOS_TREND_DEGRADE_THRESHOLD`, default `5`).
+
+Expected failure output examples:
+
+- `[readiness-trend] FAIL: missing baseline: ...`
+- `[readiness-trend] FAIL: 1 degraded exercise(s) exceeded threshold while gate_pass=true`
+- ` - pushup:score_drop:80->70`

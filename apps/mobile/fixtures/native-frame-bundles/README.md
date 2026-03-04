@@ -59,7 +59,7 @@ Readiness generation now requires all 10 exercises to have:
 Run:
 ```bash
 cd apps/mobile
-node scripts/capture-pack-completeness.mjs fixtures/native-frame-bundles/atlas-captures.v1.json
+node scripts/capture-pack-completeness.mjs fixtures/native-frame-bundles/atlas-captures.v1.json artifacts/atlas-completeness-report.v2.json artifacts/atlas-completeness-report.v1.json
 node scripts/generate-native-readiness.mjs fixtures/native-frame-bundles/atlas-captures.v1.json artifacts/atlas.native-readiness.v1.json
 ```
 
@@ -83,3 +83,16 @@ Per exercise fields:
 Aggregate metrics:
 - `total_exercises`, `passed_exercises`, `blocked_exercises`, `coverage_ratio`
 - `min_required_frames`, `min_required_landmarks`
+
+
+### Provenance attestation requirements (v2 gate)
+Each exercise capture must include deterministic provenance markers:
+- `device_id` (non-placeholder string)
+- `capture_ts` (finite positive timestamp)
+- `collector_version` (semver, e.g. `v1.2.0`)
+
+New per-exercise diagnostics in `atlas-completeness-report.v2.json`:
+- `source_attested`
+- `attestation_reasons[]`
+
+Compatibility alias still emitted: `atlas-completeness-report.v1.json`.

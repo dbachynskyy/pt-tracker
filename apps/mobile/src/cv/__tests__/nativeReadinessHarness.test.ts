@@ -16,6 +16,9 @@ function makeFullBundle(tmpDir: string) {
     captures: EXERCISES.map((exercise, i) => ({
       exercise,
       source: `real-${exercise}`,
+      device_id: `iphone15-${exercise}`,
+      capture_ts: 1772600000000 + i * 1000,
+      collector_version: 'v1.2.0',
       frames: [0, 1, 2].map((k) => ({
         base64: 'aGVsbG8=',
         timestampMs: 1772600000000 + i * 1000 + k * 33,

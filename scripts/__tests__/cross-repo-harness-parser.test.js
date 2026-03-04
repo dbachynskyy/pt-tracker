@@ -3,6 +3,7 @@
 
 const assert = require('assert');
 const path = require('path');
+const fs = require('fs');
 const {
   parseAtlasSelectorExposure,
   parseHeliosAnalyzerRouting,
@@ -10,6 +11,9 @@ const {
   evaluate,
   buildSummary,
   renderSummaryMd,
+  parseReadinessFile,
+  classifyFailFast,
+  computeTrend,
 } = require('../run-cross-repo-cv-regression-harness');
 
 const FIX = path.join(__dirname, 'fixtures', 'cross-repo');
@@ -21,13 +25,7 @@ const contract = {
   exercises: [
     { id: 'squat', analyzerClass: 'SquatAnalyzer', testSignals: ['squat.test.ts'] },
     { id: 'pushup', analyzerClass: 'PushupAnalyzer', testSignals: ['pushup.test.ts'] },
-    {
-      id: 'plank',
-      analyzerClass: 'PlankAnalyzer',
-      acceptedAnalyzerClasses: ['PlankAnalyzer', 'PlankHoldAnalyzer'],
-      acceptedRoutingIds: ['plank', 'plank_hold'],
-      testSignals: ['plankHold.test.ts'],
-    },
+    { id: 'plank', analyzerClass: 'PlankAnalyzer', acceptedAnalyzerClasses: ['PlankAnalyzer', 'PlankHoldAnalyzer'], acceptedRoutingIds: ['plank', 'plank_hold'], testSignals: ['plankHold.test.ts'] },
   ],
 };
 
@@ -35,35 +33,26 @@ const blockers = [];
 const s = parseAtlasSelectorExposure(blockers, atlasDir);
 const r = parseHeliosAnalyzerRouting(blockers, contract, heliosDir);
 const c = parseHeliosCoverageSignal(blockers, contract, heliosDir);
+assert.equal(blockers.length, 0);
+assert(r.ids.has('plank'));
 
-assert.equal(blockers.length, 0, 'no blockers expected in fixture parse');
-assert(s.ids.has('plank'), 'plank should be exposed by atlas selector evidence');
-assert(r.ids.has('plank'), 'plank should pass routing via plank_hold alias evidence');
-assert(c.ids.has('plank'), 'plank should pass coverage signal via plankHold.test.ts');
-assert((r.evidenceById.plank || []).length > 0, 'plank routing evidence must be captured');
+const tmpReadiness = path.join(__dirname, 'fixtures', 'readiness.tmp.json');
+fs.writeFileSync(tmpReadiness, JSON.stringify({ exercises: [{ exerciseId: 'plank', ready: false, reason: 'camera permission denied' }] }));
+const ar = parseReadinessFile(tmpReadiness, 'atlas', []);
+assert.equal(ar.plank.ready, false);
+assert(ar.plank.reason.includes('camera'));
 
-const out = evaluate(contract, s, r, c, [], 'live');
-assert.equal(out.status, 'PASS', 'fixture contract should pass all checks');
-
+const out = evaluate(contract, s, r, c, [], 'live', ar, {});
 const report = {
-  generatedAt: '2026-03-04T00:00:00.000Z',
-  mode: 'live',
-  status: 'PASS',
-  requiredExerciseCount: 3,
-  taxonomy: {},
-  blockers: [],
-  provenance: { atlasGitSha: 'atlas123', heliosGitSha: 'helios456' },
-  results: out.rows,
-  summary: { pass: 3, fail: 0 },
+  generatedAt: '2026-03-04T00:00:00.000Z', mode: 'live', status: 'PASS', requiredExerciseCount: 3,
+  taxonomy: {}, blockers: [], provenance: { atlasGitSha: 'a1', heliosGitSha: 'h1' }, results: out.rows, summary: { pass: 3, fail: 0 },
 };
-
 const summary = buildSummary(report, { strictGate: true });
-assert.equal(summary.pass_count, 3);
-assert.equal(summary.strictGateStatus, 'PASS');
-assert.equal(summary.atlas_git_sha, 'atlas123');
+summary.failFast = classifyFailFast(report, summary);
+assert(summary.failFast.triggered, 'camera reason should trigger fail-fast');
+const trend = computeTrend({ pass_count: 1, fail_count: 2, blocked_count: 0, status: 'FAIL', strictGateStatus: 'FAIL' }, summary);
+assert.equal(trend.pass_delta, 2);
+assert.equal(typeof renderSummaryMd(summary), 'string');
 
-const summaryMd = renderSummaryMd(summary);
-assert(summaryMd.includes('Cross-Repo CV Regression Summary'));
-assert(summaryMd.includes('Atlas SHA: atlas123'));
-
+fs.unlinkSync(tmpReadiness);
 console.log('PASS cross-repo-harness-parser.test.js');

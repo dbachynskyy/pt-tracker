@@ -138,7 +138,7 @@ ATLAS_DIR=/tmp/pt-atlas HELIOS_DIR=/tmp/pt-helios \
   bash scripts/run-cross-repo-cv-regression-harness.sh live
 ```
 
-See `docs/cv/CROSS_REPO_CV_REGRESSION_HARNESS.md` for blocker taxonomy and fallback options.
+See `docs/cv/CROSS_REPO_CV_REGRESSION_HARNESS.md` for blocker taxonomy, readiness reason ingestion, blocker-class fallback suggestions (camera/auth/credits), and trend diff fields.
 
 Regression harness parser unit test:
 
@@ -153,4 +153,12 @@ ATLAS_DIR=/tmp/pt-atlas HELIOS_DIR=/tmp/pt-helios \
   bash scripts/run-cross-repo-cv-regression-harness.sh live --strict-gate
 ```
 
-Summary artifacts: `artifacts/cross-repo-cv-regression-summary.json`, `artifacts/cross-repo-cv-regression-summary.md`.
+Summary artifacts: `artifacts/cross-repo-cv-regression-summary.json`, `artifacts/cross-repo-cv-regression-summary.md` (includes per-exercise readiness reasons, fail-fast camera/auth/credits classification with fallback guidance, and `trend` vs previous run when available).
+
+Native readiness fixture run (CI-friendly):
+
+```bash
+ATLAS_READINESS_FILE=schemas/cv/native-readiness.atlas.fixture.json \
+HELIOS_READINESS_FILE=schemas/cv/native-readiness.helios.fixture.json \
+bash scripts/run-cross-repo-cv-regression-harness.sh fixtures
+```

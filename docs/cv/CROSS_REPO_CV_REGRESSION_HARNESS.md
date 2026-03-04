@@ -21,6 +21,11 @@ ATLAS_DIR=/tmp/pt-atlas HELIOS_DIR=/tmp/pt-helios \
 
 # Auto mode: tries live, falls back to fixtures with explicit blocker note
 bash scripts/run-cross-repo-cv-regression-harness.sh auto
+
+# Optional: ingest Atlas/Helios readiness reasons and trend against previous summary
+ATLAS_READINESS_FILE=schemas/cv/native-readiness.atlas.fixture.json \
+HELIOS_READINESS_FILE=schemas/cv/native-readiness.helios.fixture.json \
+  bash scripts/run-cross-repo-cv-regression-harness.sh live
 ```
 
 ## Artifacts
@@ -96,3 +101,45 @@ ATLAS_DIR=/tmp/pt-atlas HELIOS_DIR=/tmp/pt-helios \
 - `pass_count`
 - `blocked_count`
 - strict-gate status fields
+- readiness columns per exercise (`atlasReadiness`, `atlasReadinessReason`, `heliosReadiness`, `heliosReadinessReason`)
+- `failFast.categories[]` with camera/auth/credits blocker classes and fallback suggestions
+- `trend` with `pass_delta`, `fail_delta`, `blocked_delta`, status-change flags
+
+
+## Optional inputs
+
+- `--atlas-readiness-file <path>`: optional Atlas readiness reasons (array/object format).
+- `--helios-readiness-file <path>`: optional Helios readiness reasons (array/object format).
+- `--previous-summary <path>`: summary JSON used for trend diff (defaults to the same output summary path).
+
+
+## Native readiness ingestion
+
+Pass optional readiness outputs from Atlas/Helios:
+
+```bash
+ATLAS_READINESS_FILE=schemas/cv/native-readiness.atlas.fixture.json \
+HELIOS_READINESS_FILE=schemas/cv/native-readiness.helios.fixture.json \
+bash scripts/run-cross-repo-cv-regression-harness.sh fixtures
+```
+
+Readiness fields are included per exercise in `readiness_matrix`:
+- `atlasReadiness`, `atlasReadinessReason`
+- `heliosReadiness`, `heliosReadinessReason`
+
+## Fail-fast classification
+
+Summary includes fail-fast categories:
+- `CAMERA_BLOCKER`
+- `AUTH_BLOCKER`
+- `CREDITS_BLOCKER`
+
+Each category includes exact fallback suggestions.
+
+## Trend diff
+
+Summary tracks deltas vs previous summary artifact:
+- `trend.pass_delta`
+- `trend.fail_delta`
+- `trend.blocked_delta`
+- status change flags

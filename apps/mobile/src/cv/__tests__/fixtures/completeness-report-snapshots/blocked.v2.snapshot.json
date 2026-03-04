@@ -1,0 +1,129 @@
+{
+  "version": "atlas-completeness-report.v2",
+  "generatedAt": "<redacted-timestamp>",
+  "aggregate": {
+    "total_exercises": 10,
+    "passed_exercises": 9,
+    "blocked_exercises": 1,
+    "coverage_ratio": 0.9,
+    "min_required_frames": 3,
+    "min_required_landmarks": 4
+  },
+  "exercises": [
+    {
+      "exercise": "squat",
+      "present": true,
+      "source_valid": true,
+      "source_attested": true,
+      "attestation_reasons": [],
+      "frame_count": 3,
+      "min_landmarks_ok": true,
+      "gate_pass": true,
+      "failure_reasons": []
+    },
+    {
+      "exercise": "pushup",
+      "present": true,
+      "source_valid": false,
+      "source_attested": false,
+      "attestation_reasons": [
+        "source_missing_or_placeholder"
+      ],
+      "frame_count": 3,
+      "min_landmarks_ok": true,
+      "gate_pass": false,
+      "failure_reasons": [
+        "invalid_or_placeholder_source",
+        "attestation_failed"
+      ]
+    },
+    {
+      "exercise": "sit_to_stand",
+      "present": true,
+      "source_valid": true,
+      "source_attested": true,
+      "attestation_reasons": [],
+      "frame_count": 3,
+      "min_landmarks_ok": true,
+      "gate_pass": true,
+      "failure_reasons": []
+    },
+    {
+      "exercise": "plank",
+      "present": true,
+      "source_valid": true,
+      "source_attested": true,
+      "attestation_reasons": [],
+      "frame_count": 3,
+      "min_landmarks_ok": true,
+      "gate_pass": true,
+      "failure_reasons": []
+    },
+    {
+      "exercise": "lunge",
+      "present": true,
+      "source_valid": true,
+      "source_attested": true,
+      "attestation_reasons": [],
+      "frame_count": 3,
+      "min_landmarks_ok": true,
+      "gate_pass": true,
+      "failure_reasons": []
+    },
+    {
+      "exercise": "glute_bridge",
+      "present": true,
+      "source_valid": true,
+      "source_attested": true,
+      "attestation_reasons": [],
+      "frame_count": 3,
+      "min_landmarks_ok": true,
+      "gate_pass": true,
+      "failure_reasons": []
+    },
+    {
+      "exercise": "knee_extension",
+      "present": true,
+      "source_valid": true,
+      "source_attested": true,
+      "attestation_reasons": [],
+      "frame_count": 3,
+      "min_landmarks_ok": true,
+      "gate_pass": true,
+      "failure_reasons": []
+    },
+    {
+      "exercise": "heel_raise",
+      "present": true,
+      "source_valid": true,
+      "source_attested": true,
+      "attestation_reasons": [],
+      "frame_count": 3,
+      "min_landmarks_ok": true,
+      "gate_pass": true,
+      "failure_reasons": []
+    },
+    {
+      "exercise": "calf_raise",
+      "present": true,
+      "source_valid": true,
+      "source_attested": true,
+      "attestation_reasons": [],
+      "frame_count": 3,
+      "min_landmarks_ok": true,
+      "gate_pass": true,
+      "failure_reasons": []
+    },
+    {
+      "exercise": "shoulder_abduction",
+      "present": true,
+      "source_valid": true,
+      "source_attested": true,
+      "attestation_reasons": [],
+      "frame_count": 3,
+      "min_landmarks_ok": true,
+      "gate_pass": true,
+      "failure_reasons": []
+    }
+  ]
+}

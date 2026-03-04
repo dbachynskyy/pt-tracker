@@ -205,6 +205,31 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
+
+  # ─────────────────────────────────────────────
+  # 8. Cross-repo CV regression harness (fixture mode)
+  # ─────────────────────────────────────────────
+  cross-repo-cv-regression-fixture:
+    name: Cross-repo CV regression harness (fixture)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Run cross-repo regression harness (fixture)
+        run: bash scripts/run-cross-repo-cv-regression-harness.sh fixtures
+      - name: Upload cross-repo regression artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-repo-cv-regression-fixture-${{ github.run_id }}
+          path: |
+            artifacts/cross-repo-cv-regression.json
+            artifacts/cross-repo-cv-regression.md
+          retention-days: 30
+          if-no-files-found: warn
+
   # All-green gate (branch protection target)
   # ─────────────────────────────────────────────
   ci-gate:
@@ -218,5 +243,6 @@ jobs:
       - shellcheck
       - cv-quality-gate
       - atlas-helios-fixture-smoke
+      - cross-repo-cv-regression-fixture
     steps:
       - run: echo "All CI checks passed."

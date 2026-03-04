@@ -49,3 +49,15 @@ Exit codes:
 - `0` PASS
 - `1` parity mismatch / 10-of-10 mismatch
 - `2` BLOCKED (missing cross-repo paths/contracts in live mode)
+
+
+## Cross-repo regression harness
+
+```bash
+# Fixture mode in CI
+bash scripts/run-cross-repo-cv-regression-harness.sh fixtures
+
+# Live mode before release
+ATLAS_DIR=/tmp/pt-atlas HELIOS_DIR=/tmp/pt-helios \
+  bash scripts/run-cross-repo-cv-regression-harness.sh live
+```

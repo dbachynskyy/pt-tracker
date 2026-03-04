@@ -125,3 +125,17 @@ ATLAS_DIR=/tmp/pt-atlas HELIOS_DIR=/tmp/pt-helios   node scripts/check-atlas-hel
 Artifacts:
 - `artifacts/atlas-helios-parity.json`
 - `artifacts/atlas-helios-parity.md`
+
+
+### Cross-Repo CV Regression Harness
+
+```bash
+# CI-safe
+bash scripts/run-cross-repo-cv-regression-harness.sh fixtures
+
+# Live strict mode
+ATLAS_DIR=/tmp/pt-atlas HELIOS_DIR=/tmp/pt-helios \
+  bash scripts/run-cross-repo-cv-regression-harness.sh live
+```
+
+See `docs/cv/CROSS_REPO_CV_REGRESSION_HARNESS.md` for blocker taxonomy and fallback options.

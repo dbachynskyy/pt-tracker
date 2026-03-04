@@ -237,3 +237,4 @@ Both documents must be kept in sync when new exercises or thresholds are added.
 - `docs/cv/MERGE_PLAN_ATLAS_HELIOS.md`
 
 - `docs/cv/ATLAS_HELIOS_PARITY_GATE.md`
+- `docs/cv/CROSS_REPO_CV_REGRESSION_HARNESS.md`

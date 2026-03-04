@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "orion.readiness.gate.v1",
+  "threshold_profile_version": "readiness-thresholds.v1",
+  "exercises": [
+    {
+      "exercise": "squat",
+      "gate_pass": true,
+      "quality_score": 85,
+      "fail_reasons": [],
+      "threshold_profile_version": "readiness-thresholds.v1"
+    },
+    {
+      "exercise": "pushup",
+      "gate_pass": true,
+      "quality_score": 75,
+      "fail_reasons": [],
+      "threshold_profile_version": "readiness-thresholds.v1"
+    },
+    {
+      "exercise": "sit_to_stand",
+      "gate_pass": true,
+      "quality_score": 80,
+      "fail_reasons": [],
+      "threshold_profile_version": "readiness-thresholds.v1"
+    },
+    {
+      "exercise": "lunge",
+      "gate_pass": true,
+      "quality_score": 80,
+      "fail_reasons": [],
+      "threshold_profile_version": "readiness-thresholds.v1"
+    },
+    {
+      "exercise": "calf_raise",
+      "gate_pass": true,
+      "quality_score": 80,
+      "fail_reasons": [],
+      "threshold_profile_version": "readiness-thresholds.v1"
+    },
+    {
+      "exercise": "glute_bridge",
+      "gate_pass": true,
+      "quality_score": 80,
+      "fail_reasons": [],
+      "threshold_profile_version": "readiness-thresholds.v1"
+    },
+    {
+      "exercise": "shoulder_abduction",
+      "gate_pass": true,
+      "quality_score": 80,
+      "fail_reasons": [],
+      "threshold_profile_version": "readiness-thresholds.v1"
+    },
+    {
+      "exercise": "heel_raise",
+      "gate_pass": true,
+      "quality_score": 80,
+      "fail_reasons": [],
+      "threshold_profile_version": "readiness-thresholds.v1"
+    },
+    {
+      "exercise": "knee_extension",
+      "gate_pass": true,
+      "quality_score": 80,
+      "fail_reasons": [],
+      "threshold_profile_version": "readiness-thresholds.v1"
+    },
+    {
+      "exercise": "plank_hold",
+      "gate_pass": true,
+      "quality_score": 80,
+      "fail_reasons": [],
+      "threshold_profile_version": "readiness-thresholds.v1"
+    }
+  ]
+}

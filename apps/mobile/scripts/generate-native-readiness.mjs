@@ -1,12 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { CANONICAL_EXERCISES, validateBundle } from './native-capture-schema.mjs';
+import { assertCapturePackComplete } from './capture-pack-completeness.mjs';
 
 const bundlePath = process.argv[2] ?? path.resolve('fixtures/native-frame-bundles/atlas-captures.v1.json');
 const outPath = process.argv[3] ?? path.resolve('artifacts/atlas.native-readiness.v1.json');
 
 const bundle = JSON.parse(fs.readFileSync(bundlePath, 'utf8'));
 validateBundle(bundle);
+assertCapturePackComplete(bundle);
 const captures = Array.isArray(bundle.captures) ? bundle.captures : [];
 
 const exercises = CANONICAL_EXERCISES.map((exercise) => {

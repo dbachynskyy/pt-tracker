@@ -7,7 +7,8 @@
     "test:cv": "jest --testPathPattern=cv --runInBand",
     "check:readiness-gate": "node scripts/check-readiness-gate.js",
     "check:readiness-regression": "node scripts/check-readiness-regression.js",
-    "check:readiness-trend": "node scripts/check-readiness-trend.js"
+    "check:readiness-trend": "node scripts/check-readiness-trend.js",
+    "check:readiness-stability": "node scripts/check-readiness-stability.js"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

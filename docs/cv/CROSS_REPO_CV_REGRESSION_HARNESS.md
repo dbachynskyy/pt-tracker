@@ -256,3 +256,28 @@ Console status line:
   - set `HELIOS_MASTER_READINESS_FILE=<fresh file>`
 - If Orion summary is stale:
   - rerun `bash scripts/run-realcv-rollout-gate.sh` to refresh strict summary before master merge
+
+
+## Cross-lane orchestrator (single command)
+
+```bash
+ATLAS_READINESS_FILE=schemas/cv/native-readiness.atlas.fixture.json \
+HELIOS_READINESS_FILE=schemas/cv/native-readiness.helios.fixture.json \
+bash scripts/run-realcv-crosslane-orchestrator.sh
+```
+
+Unified artifact:
+- `artifacts/realcv-crosslane-status.json`
+
+Behavior:
+- Runs Atlas/Helios readiness inputs + Orion rollout/master readiness flow
+- Fails non-zero if **any lane** is `BLOCKED`
+
+### Triage flow
+1. Check `lane_status` in `realcv-crosslane-status.json`
+2. Inspect `blockers[]` for lane-specific reason
+3. Fix lane and rerun orchestrator:
+   - atlas blocked -> regenerate/fix Atlas readiness artifact
+   - helios blocked -> regenerate/fix Helios readiness artifact
+   - orion blocked -> rerun strict rollout/master gate and verify `tests_passed`
+4. Confirm `tests_passed: true` and all lane statuses `PASS`

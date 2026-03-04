@@ -182,3 +182,11 @@ node scripts/build-realcv-master-readiness.js atlas.native-readiness.v1.json art
 ```
 
 `run-realcv-rollout-gate.sh` now enforces master readiness as final gate and prints `REALCV_LANE_STATUS ... blockers=<n>`.
+
+Cross-lane orchestrator:
+
+```bash
+bash scripts/run-realcv-crosslane-orchestrator.sh
+```
+
+Writes unified status: `artifacts/realcv-crosslane-status.json` and exits non-zero on any blocked lane.

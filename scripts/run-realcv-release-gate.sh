@@ -19,6 +19,20 @@ node "$SCRIPT_DIR/build-realcv-10ex-status.js" \
   "$ORION_SUMMARY_FILE" \
   "$EX10_STATUS_FILE" || true
 
+
+# Build summary artifacts + deterministic CI lines
+node "$SCRIPT_DIR/build-realcv-10ex-summary.js"   "$EX10_STATUS_FILE"   "$ROOT_DIR/artifacts/realcv-10ex-summary.v1.json"   "$ROOT_DIR/artifacts/realcv-10ex-summary.md" || true
+
+# Hard-fail on any red exercise unless ALLOW_PARTIAL_REALCV=1
+node -e '
+  const fs=require("fs");
+  const p=process.argv[1];
+  const allow=process.env.ALLOW_PARTIAL_REALCV==="1";
+  const s=JSON.parse(fs.readFileSync(p,"utf8"));
+  if (!allow && s.blocker_count>0) process.exit(1);
+  process.exit(0);
+' "$ROOT_DIR/artifacts/realcv-10ex-summary.v1.json"
+
 # Backward-compatible v1 artifact
 node "$SCRIPT_DIR/build-realcv-release-readiness.js" \
   --version v1 \

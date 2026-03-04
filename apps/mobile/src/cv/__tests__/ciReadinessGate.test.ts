@@ -74,6 +74,19 @@ describe('CI readiness gate script', () => {
     expect(res.stderr).toContain('missing threshold config');
   });
 
+
+  it('emits blocker catalog + fallback options for auth/credits/rate-limit blockers', () => {
+    const art = passArtifact();
+    art.byExercise.squat.quality.status_reason = 'AUTH_UNAUTHORIZED_401';
+    art.byExercise.pushup.quality.status_reason = 'CREDITS_QUOTA_EXCEEDED';
+    art.byExercise.lunge.quality.status_reason = 'RATE_LIMIT_429';
+    const res = runWith(art);
+    expect(res.status).not.toBe(0);
+    const summary = JSON.parse(readFileSync(res.summaryPath, 'utf8'));
+    expect(summary.blocker_catalog).toEqual(expect.arrayContaining(['AUTH_BLOCKER','CREDITS_BLOCKER','RATE_LIMIT_BLOCKER']));
+    expect(summary.fallback_options.length).toBeGreaterThan(0);
+  });
+
   it('fails when threshold_profile_version is missing', () => {
     const art = passArtifact();
     delete (art as any).threshold_profile_version;

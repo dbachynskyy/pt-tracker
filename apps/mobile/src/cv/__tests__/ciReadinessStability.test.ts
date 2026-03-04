@@ -27,6 +27,22 @@ describe('CI readiness stability guard', () => {
     expect(res.status).toBe(0);
   });
 
+
+  it('emits blocker catalog/fallback options for all blocker classes', () => {
+    const res = run(join(FIX, 'blockers_all.json'));
+    expect(res.status).toBe(0);
+    const out = JSON.parse(readFileSync(res.out, 'utf8'));
+    expect(out.blocker_catalog).toEqual(expect.arrayContaining(['AUTH_BLOCKER','CREDITS_BLOCKER','RATE_LIMIT_BLOCKER']));
+    expect(out.fallback_options.length).toBeGreaterThan(0);
+  });
+
+  it('emits mixed blocker catalog deterministically', () => {
+    const res = run(join(FIX, 'blockers_mixed.json'));
+    expect(res.status).toBe(0);
+    const out = JSON.parse(readFileSync(res.out, 'utf8'));
+    expect(out.blocker_catalog).toEqual(expect.arrayContaining(['AUTH_BLOCKER','RATE_LIMIT_BLOCKER']));
+  });
+
   it('fails severe unstable history', () => {
     const res = run(join(FIX, 'severe_unstable.json'));
     expect(res.status).toBe(7);

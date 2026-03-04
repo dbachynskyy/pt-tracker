@@ -1,0 +1,248 @@
+[
+  {
+    "schemaVersion": "orion.readiness.gate.v1",
+    "threshold_profile_version": "readiness-thresholds.v1",
+    "exercises": [
+      {
+        "exercise": "squat",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [
+          "AUTH_UNAUTHORIZED_401"
+        ],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "pushup",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [
+          "CREDITS_QUOTA_EXCEEDED"
+        ],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "sit_to_stand",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "lunge",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [
+          "RATE_LIMIT_429"
+        ],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "calf_raise",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "glute_bridge",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "shoulder_abduction",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "heel_raise",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "knee_extension",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "plank_hold",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      }
+    ]
+  },
+  {
+    "schemaVersion": "orion.readiness.gate.v1",
+    "threshold_profile_version": "readiness-thresholds.v1",
+    "exercises": [
+      {
+        "exercise": "squat",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [
+          "AUTH_UNAUTHORIZED_401"
+        ],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "pushup",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [
+          "CREDITS_QUOTA_EXCEEDED"
+        ],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "sit_to_stand",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "lunge",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [
+          "RATE_LIMIT_429"
+        ],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "calf_raise",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "glute_bridge",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "shoulder_abduction",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "heel_raise",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "knee_extension",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "plank_hold",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      }
+    ]
+  },
+  {
+    "schemaVersion": "orion.readiness.gate.v1",
+    "threshold_profile_version": "readiness-thresholds.v1",
+    "exercises": [
+      {
+        "exercise": "squat",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [
+          "AUTH_UNAUTHORIZED_401"
+        ],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "pushup",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [
+          "CREDITS_QUOTA_EXCEEDED"
+        ],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "sit_to_stand",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "lunge",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [
+          "RATE_LIMIT_429"
+        ],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "calf_raise",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "glute_bridge",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "shoulder_abduction",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "heel_raise",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "knee_extension",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      },
+      {
+        "exercise": "plank_hold",
+        "gate_pass": false,
+        "quality_score": 70,
+        "fail_reasons": [],
+        "threshold_profile_version": "readiness-thresholds.v1"
+      }
+    ]
+  }
+]

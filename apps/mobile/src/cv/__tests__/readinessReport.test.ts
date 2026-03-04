@@ -24,6 +24,7 @@ describe('readiness failure aggregation', () => {
   it('aggregates reasons and quality gate fields per exercise', () => {
     const report = aggregateReadinessFailures(snapshots);
     expect(report.schemaVersion).toBe('orion.readiness.v1');
+    expect(report.threshold_profile_version).toBe('readiness-thresholds.v1');
     expect(report.generatedAt).toBe('1970-01-01T00:00:00.000Z');
     expect(report.totals).toEqual({ sessions: 2, exercisesObserved: 4, failures: 3 });
 

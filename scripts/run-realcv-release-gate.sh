@@ -112,3 +112,16 @@ node -e '
   if (t.guard_fail && token!="ALLOW") process.exit(1);
   process.exit(0);
 ' "$ROOT_DIR/artifacts/realcv-release-trend-history.v1.json"
+
+
+# Final release audit bundle assembler (mandatory final decision)
+node "$SCRIPT_DIR/build-realcv-release-audit-bundle.js"   --final "$ROOT_DIR/artifacts/realcv-final-contract.v1.json"   --matrix "$ROOT_DIR/artifacts/realcv-release-candidate-matrix.v1.json"   --trend "$ROOT_DIR/artifacts/realcv-release-trend-history.v1.json"   --atlas "$ROOT_DIR/artifacts/atlas-coverage-gate.v1.json"   --helios "$ROOT_DIR/artifacts/helios-exercise-readiness.v1.json"   --orion "$ROOT_DIR/artifacts/realcv-lanes-status.v1.json"   --out "$ROOT_DIR/artifacts/realcv-release-audit-bundle.v1.json"   --md "$ROOT_DIR/artifacts/realcv-release-audit-bundle.md" || true
+
+# HOLD guard unless explicit override token
+node -e '
+  const fs=require("fs");
+  const b=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
+  const token=process.env.ALLOW_REALCV_RELEASE_HOLD_OVERRIDE||"";
+  if (b.release_decision==="HOLD" && token!=="ALLOW") process.exit(1);
+  process.exit(0);
+' "$ROOT_DIR/artifacts/realcv-release-audit-bundle.v1.json"

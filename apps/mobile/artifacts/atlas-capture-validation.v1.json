@@ -1,0 +1,142 @@
+{
+  "version": "atlas-capture-validation.v1",
+  "generatedAt": "2026-03-04T10:41:06.255Z",
+  "aggregate": {
+    "total_exercises": 10,
+    "valid_exercises": 0,
+    "invalid_exercises": 10,
+    "coverage_ratio": 0
+  },
+  "exercises": [
+    {
+      "exercise": "squat",
+      "has_capture": true,
+      "valid_capture_count": 0,
+      "valid": false,
+      "reasons": [
+        "capture_id_missing",
+        "device_id_missing",
+        "ts_invalid",
+        "exercise_id_mismatch",
+        "rep_count_missing"
+      ]
+    },
+    {
+      "exercise": "pushup",
+      "has_capture": true,
+      "valid_capture_count": 0,
+      "valid": false,
+      "reasons": [
+        "capture_id_missing",
+        "device_id_missing",
+        "ts_invalid",
+        "exercise_id_mismatch",
+        "empty_bundle"
+      ]
+    },
+    {
+      "exercise": "sit_to_stand",
+      "has_capture": true,
+      "valid_capture_count": 0,
+      "valid": false,
+      "reasons": [
+        "capture_id_missing",
+        "device_id_missing",
+        "ts_invalid",
+        "exercise_id_mismatch",
+        "empty_bundle"
+      ]
+    },
+    {
+      "exercise": "plank",
+      "has_capture": true,
+      "valid_capture_count": 0,
+      "valid": false,
+      "reasons": [
+        "capture_id_missing",
+        "device_id_missing",
+        "ts_invalid",
+        "exercise_id_mismatch",
+        "empty_bundle"
+      ]
+    },
+    {
+      "exercise": "lunge",
+      "has_capture": true,
+      "valid_capture_count": 0,
+      "valid": false,
+      "reasons": [
+        "capture_id_missing",
+        "device_id_missing",
+        "ts_invalid",
+        "exercise_id_mismatch",
+        "empty_bundle"
+      ]
+    },
+    {
+      "exercise": "glute_bridge",
+      "has_capture": true,
+      "valid_capture_count": 0,
+      "valid": false,
+      "reasons": [
+        "capture_id_missing",
+        "device_id_missing",
+        "ts_invalid",
+        "exercise_id_mismatch",
+        "empty_bundle"
+      ]
+    },
+    {
+      "exercise": "knee_extension",
+      "has_capture": true,
+      "valid_capture_count": 0,
+      "valid": false,
+      "reasons": [
+        "capture_id_missing",
+        "device_id_missing",
+        "ts_invalid",
+        "exercise_id_mismatch",
+        "empty_bundle"
+      ]
+    },
+    {
+      "exercise": "heel_raise",
+      "has_capture": true,
+      "valid_capture_count": 0,
+      "valid": false,
+      "reasons": [
+        "capture_id_missing",
+        "device_id_missing",
+        "ts_invalid",
+        "exercise_id_mismatch",
+        "empty_bundle"
+      ]
+    },
+    {
+      "exercise": "calf_raise",
+      "has_capture": true,
+      "valid_capture_count": 0,
+      "valid": false,
+      "reasons": [
+        "capture_id_missing",
+        "device_id_missing",
+        "ts_invalid",
+        "exercise_id_mismatch",
+        "empty_bundle"
+      ]
+    },
+    {
+      "exercise": "shoulder_abduction",
+      "has_capture": true,
+      "valid_capture_count": 0,
+      "valid": false,
+      "reasons": [
+        "capture_id_missing",
+        "device_id_missing",
+        "ts_invalid",
+        "exercise_id_mismatch",
+        "empty_bundle"
+      ]
+    }
+  ]
+}

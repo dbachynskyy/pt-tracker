@@ -1,6 +1,9 @@
 import { RepCounter, type ExerciseAnalyzer, type PoseFrame, type RepEvent, type Landmark } from './repCounter';
+import { normalizeExerciseId, type ExerciseId } from './exerciseRegistry';
+import { READINESS_CRITERIA, type ExerciseReadinessCriteria } from './readinessCriteria';
 
 export type CalibrationStatus = 'UNCALIBRATED' | 'CALIBRATING' | 'READY' | 'REJECTED';
+export type CalibrationReason = 'INSUFFICIENT_ROM' | 'NO_SIGNAL' | 'INSUFFICIENT_SIGNAL';
 
 export interface CalibrationState {
   status: CalibrationStatus;
@@ -8,33 +11,20 @@ export interface CalibrationState {
   framesSeen: number;
   range: number;
   baseline: number;
-  reason?: 'INSUFFICIENT_ROM' | 'NO_SIGNAL';
+  reason?: CalibrationReason;
 }
 
 export interface CalibrationConfig {
-  requiredFrames: number;
-  maxFrames: number;
-  minRangeByExercise: Record<string, number>;
+  // Legacy knobs (kept for API compatibility in tests/callers)
+  requiredFrames?: number;
+  maxFrames?: number;
+  minRangeByExercise?: Record<string, number>;
+  // New criteria overrides per exercise
+  readinessOverrides?: Partial<Record<ExerciseId, Partial<ExerciseReadinessCriteria>>>;
   occlusionRecoveryFrames: number;
 }
 
-const DEFAULT_MIN_RANGE: Record<string, number> = {
-  squat: 35,
-  pushup: 30,
-  sit_to_stand: 35,
-  lunge: 30,
-  calf_raise: 0.03,
-  glute_bridge: 0.03,
-  shoulder_abduction: 25,
-  heel_raise: 0.03,
-  knee_extension: 35,
-  plank_hold: 8,
-};
-
 const DEFAULT_CFG: CalibrationConfig = {
-  requiredFrames: 24,
-  maxFrames: 90,
-  minRangeByExercise: DEFAULT_MIN_RANGE,
   occlusionRecoveryFrames: 5,
 };
 
@@ -65,17 +55,13 @@ function metricForExercise(exerciseId: string, frame: PoseFrame): number {
     }
     case 'calf_raise':
     case 'heel_raise': {
-      const l = frame[27].y - frame[31].y;
-      const r = frame[28].y - frame[32].y;
-      return avg(l, r);
+      return avg(frame[27].y - frame[31].y, frame[28].y - frame[32].y);
     }
     case 'glute_bridge': {
-      return -avg(frame[23].y, frame[24].y); // higher bridge => larger metric
+      return -avg(frame[23].y, frame[24].y);
     }
     case 'shoulder_abduction': {
-      const l = angleDeg(frame[23], frame[11], frame[13]);
-      const r = angleDeg(frame[24], frame[12], frame[14]);
-      return avg(l, r);
+      return avg(angleDeg(frame[23], frame[11], frame[13]), angleDeg(frame[24], frame[12], frame[14]));
     }
     case 'plank_hold': {
       const sh = { x: avg(frame[11].x, frame[12].x), y: avg(frame[11].y, frame[12].y), z: 0 } as Landmark;
@@ -90,19 +76,36 @@ function metricForExercise(exerciseId: string, frame: PoseFrame): number {
 
 export class StabilizedRepCounter {
   private readonly repCounter: RepCounter;
+  private readonly analyzer: ExerciseAnalyzer;
   private readonly cfg: CalibrationConfig;
+  private readonly criteria: ExerciseReadinessCriteria;
+
   private samples: number[] = [];
+  private observedCalibrationFrames = 0;
   private occluded = false;
   private recoverySeen = 0;
   private state: CalibrationState;
 
   constructor(analyzer: ExerciseAnalyzer, targetReps: number, cfg: Partial<CalibrationConfig> = {}) {
+    this.analyzer = analyzer;
     this.repCounter = new RepCounter(analyzer, targetReps);
-    this.cfg = {
-      ...DEFAULT_CFG,
-      ...cfg,
-      minRangeByExercise: { ...DEFAULT_CFG.minRangeByExercise, ...(cfg.minRangeByExercise ?? {}) },
+    this.cfg = { ...DEFAULT_CFG, ...cfg };
+
+    const ex = normalizeExerciseId(analyzer.exerciseId);
+    const base = READINESS_CRITERIA[ex];
+    const legacyMinRange = cfg.minRangeByExercise?.[analyzer.exerciseId];
+    const legacyFrames = cfg.requiredFrames;
+    const legacyMax = cfg.maxFrames;
+    const ov = cfg.readinessOverrides?.[ex] ?? {};
+
+    this.criteria = {
+      ...base,
+      ...(legacyMinRange !== undefined ? { minRange: legacyMinRange } : {}),
+      ...(legacyFrames !== undefined ? { calibrationFrames: legacyFrames } : {}),
+      ...(legacyMax !== undefined ? { maxCalibrationFrames: legacyMax } : {}),
+      ...ov,
     };
+
     this.state = {
       status: 'UNCALIBRATED',
       exerciseId: analyzer.exerciseId,
@@ -127,23 +130,29 @@ export class StabilizedRepCounter {
       this.repCounter.resume();
     }
 
-    if (this.state.status !== 'READY') {
-      return this.calibrate(frame);
-    }
-
+    if (this.state.status !== 'READY') return this.calibrate(frame);
     return this.repCounter.processFrame(frame, sessionMs);
   }
 
-  getCalibrationState(): CalibrationState {
-    return { ...this.state };
-  }
-
+  getCalibrationState(): CalibrationState { return { ...this.state }; }
+  getReadinessCriteria(): ExerciseReadinessCriteria { return { ...this.criteria }; }
   endSession() { return this.repCounter.endSession(); }
   getSession() { return this.repCounter.getSession(); }
   resume() { return this.repCounter.resume(); }
 
   private calibrate(frame: PoseFrame): null {
     this.state.status = this.state.status === 'UNCALIBRATED' ? 'CALIBRATING' : this.state.status;
+    this.observedCalibrationFrames += 1;
+
+    const signal = this.hasSufficientSignal(frame);
+    if (!signal) {
+      this.state.reason = 'INSUFFICIENT_SIGNAL';
+      if (this.observedCalibrationFrames >= this.criteria.maxCalibrationFrames) {
+        this.state.status = 'REJECTED';
+      }
+      return null;
+    }
+
     const m = metricForExercise(this.state.exerciseId, frame);
     this.samples.push(m);
     this.state.framesSeen = this.samples.length;
@@ -153,20 +162,32 @@ export class StabilizedRepCounter {
     this.state.range = max - min;
     this.state.baseline = this.samples.reduce((a, b) => a + b, 0) / this.samples.length;
 
-    const minRange = this.cfg.minRangeByExercise[this.state.exerciseId] ?? 20;
-    if (this.samples.length >= this.cfg.requiredFrames && this.state.range >= minRange) {
+    if (this.samples.length >= this.criteria.calibrationFrames && this.state.range >= this.criteria.minRange) {
       this.state.status = 'READY';
+      this.state.reason = undefined;
       this.samples = [];
       return null;
     }
 
-    if (this.samples.length >= this.cfg.maxFrames) {
+    if (this.observedCalibrationFrames >= this.criteria.maxCalibrationFrames) {
       this.state.status = 'REJECTED';
       this.state.reason = this.state.range > 0 ? 'INSUFFICIENT_ROM' : 'NO_SIGNAL';
       this.samples = [];
-      return null;
     }
 
     return null;
+  }
+
+  private hasSufficientSignal(frame: PoseFrame): boolean {
+    const required = this.analyzer.requiredLandmarks;
+    let visible = 0;
+    let confSum = 0;
+    for (const i of required) {
+      const v = frame[i]?.visibility ?? 0;
+      confSum += v;
+      if (v >= this.criteria.minLandmarkConfidence) visible += 1;
+    }
+    const avg = required.length ? confSum / required.length : 0;
+    return visible >= this.criteria.minVisibleLandmarks && avg >= this.criteria.minFrameConfidence;
   }
 }

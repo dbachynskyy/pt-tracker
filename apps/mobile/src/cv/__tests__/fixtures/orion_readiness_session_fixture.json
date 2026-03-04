@@ -11,45 +11,195 @@
       "failures": 1,
       "reasons": {
         "NO_SIGNAL": 1
+      },
+      "quality": {
+        "sample_count": 0,
+        "confidence_p50": 0,
+        "confidence_p90": 0,
+        "rep_signal_present": false,
+        "status_reason": "NO_SIGNAL",
+        "gate_pass": false,
+        "gate_fail_reasons": [
+          "NO_SAMPLES",
+          "LOW_CONFIDENCE_P50",
+          "LOW_CONFIDENCE_P90",
+          "NO_REP_SIGNAL",
+          "STATUS_NO_SIGNAL"
+        ]
       }
     },
     "pushup": {
       "failures": 1,
       "reasons": {
         "INSUFFICIENT_ROM": 1
+      },
+      "quality": {
+        "sample_count": 0,
+        "confidence_p50": 0,
+        "confidence_p90": 0,
+        "rep_signal_present": false,
+        "status_reason": "INSUFFICIENT_ROM",
+        "gate_pass": false,
+        "gate_fail_reasons": [
+          "NO_SAMPLES",
+          "LOW_CONFIDENCE_P50",
+          "LOW_CONFIDENCE_P90",
+          "NO_REP_SIGNAL",
+          "STATUS_INSUFFICIENT_ROM"
+        ]
       }
     },
     "sit_to_stand": {
       "failures": 0,
-      "reasons": {}
+      "reasons": {},
+      "quality": {
+        "sample_count": 0,
+        "confidence_p50": 0,
+        "confidence_p90": 0,
+        "rep_signal_present": false,
+        "status_reason": "UNCALIBRATED",
+        "gate_pass": false,
+        "gate_fail_reasons": [
+          "NO_SAMPLES",
+          "LOW_CONFIDENCE_P50",
+          "LOW_CONFIDENCE_P90",
+          "NO_REP_SIGNAL",
+          "STATUS_UNCALIBRATED"
+        ]
+      }
     },
     "lunge": {
       "failures": 0,
-      "reasons": {}
+      "reasons": {},
+      "quality": {
+        "sample_count": 0,
+        "confidence_p50": 0,
+        "confidence_p90": 0,
+        "rep_signal_present": false,
+        "status_reason": "UNCALIBRATED",
+        "gate_pass": false,
+        "gate_fail_reasons": [
+          "NO_SAMPLES",
+          "LOW_CONFIDENCE_P50",
+          "LOW_CONFIDENCE_P90",
+          "NO_REP_SIGNAL",
+          "STATUS_UNCALIBRATED"
+        ]
+      }
     },
     "calf_raise": {
       "failures": 0,
-      "reasons": {}
+      "reasons": {},
+      "quality": {
+        "sample_count": 0,
+        "confidence_p50": 0,
+        "confidence_p90": 0,
+        "rep_signal_present": false,
+        "status_reason": "UNCALIBRATED",
+        "gate_pass": false,
+        "gate_fail_reasons": [
+          "NO_SAMPLES",
+          "LOW_CONFIDENCE_P50",
+          "LOW_CONFIDENCE_P90",
+          "NO_REP_SIGNAL",
+          "STATUS_UNCALIBRATED"
+        ]
+      }
     },
     "glute_bridge": {
       "failures": 0,
-      "reasons": {}
+      "reasons": {},
+      "quality": {
+        "sample_count": 0,
+        "confidence_p50": 0,
+        "confidence_p90": 0,
+        "rep_signal_present": false,
+        "status_reason": "UNCALIBRATED",
+        "gate_pass": false,
+        "gate_fail_reasons": [
+          "NO_SAMPLES",
+          "LOW_CONFIDENCE_P50",
+          "LOW_CONFIDENCE_P90",
+          "NO_REP_SIGNAL",
+          "STATUS_UNCALIBRATED"
+        ]
+      }
     },
     "shoulder_abduction": {
       "failures": 0,
-      "reasons": {}
+      "reasons": {},
+      "quality": {
+        "sample_count": 0,
+        "confidence_p50": 0,
+        "confidence_p90": 0,
+        "rep_signal_present": false,
+        "status_reason": "UNCALIBRATED",
+        "gate_pass": false,
+        "gate_fail_reasons": [
+          "NO_SAMPLES",
+          "LOW_CONFIDENCE_P50",
+          "LOW_CONFIDENCE_P90",
+          "NO_REP_SIGNAL",
+          "STATUS_UNCALIBRATED"
+        ]
+      }
     },
     "heel_raise": {
       "failures": 0,
-      "reasons": {}
+      "reasons": {},
+      "quality": {
+        "sample_count": 0,
+        "confidence_p50": 0,
+        "confidence_p90": 0,
+        "rep_signal_present": false,
+        "status_reason": "UNCALIBRATED",
+        "gate_pass": false,
+        "gate_fail_reasons": [
+          "NO_SAMPLES",
+          "LOW_CONFIDENCE_P50",
+          "LOW_CONFIDENCE_P90",
+          "NO_REP_SIGNAL",
+          "STATUS_UNCALIBRATED"
+        ]
+      }
     },
     "knee_extension": {
       "failures": 0,
-      "reasons": {}
+      "reasons": {},
+      "quality": {
+        "sample_count": 0,
+        "confidence_p50": 0,
+        "confidence_p90": 0,
+        "rep_signal_present": false,
+        "status_reason": "UNCALIBRATED",
+        "gate_pass": false,
+        "gate_fail_reasons": [
+          "NO_SAMPLES",
+          "LOW_CONFIDENCE_P50",
+          "LOW_CONFIDENCE_P90",
+          "NO_REP_SIGNAL",
+          "STATUS_UNCALIBRATED"
+        ]
+      }
     },
     "plank_hold": {
       "failures": 0,
-      "reasons": {}
+      "reasons": {},
+      "quality": {
+        "sample_count": 0,
+        "confidence_p50": 0,
+        "confidence_p90": 0,
+        "rep_signal_present": false,
+        "status_reason": "UNCALIBRATED",
+        "gate_pass": false,
+        "gate_fail_reasons": [
+          "NO_SAMPLES",
+          "LOW_CONFIDENCE_P50",
+          "LOW_CONFIDENCE_P90",
+          "NO_REP_SIGNAL",
+          "STATUS_UNCALIBRATED"
+        ]
+      }
     }
   }
 }

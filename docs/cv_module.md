@@ -219,3 +219,23 @@ Runtime selector/mapping now supports and normalizes the full 10-exercise contra
 - plank_hold
 
 Compatibility rule: legacy incoming id `plank` is normalized to `plank_hold` before analyzer selection.
+
+## Readiness Failure Aggregation (Orion Harness)
+
+Added helper module: `apps/mobile/src/cv/readinessReport.ts`
+
+- `aggregateReadinessFailures(snapshots)`
+  - Aggregates readiness failure reasons across session snapshots, grouped by exercise.
+  - Tracks canonical reasons (`NO_SIGNAL`, `INSUFFICIENT_ROM`) and any future custom reasons.
+- `renderReadinessFailureReportJson(snapshots)`
+  - Produces stable JSON for downstream tooling.
+- `writeOrionReadinessArtifact(path, snapshots)`
+  - Writes a harness-consumable artifact with schema version `orion.readiness.v1`.
+
+Artifact shape highlights:
+
+- `schemaVersion`
+- `generatedAt`
+- `totals` (`sessions`, `exercisesObserved`, `failures`)
+- `byExercise[exerciseId].failures`
+- `byExercise[exerciseId].reasons[reason]`

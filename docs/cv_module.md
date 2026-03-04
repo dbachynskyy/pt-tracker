@@ -239,3 +239,9 @@ Artifact shape highlights:
 - `totals` (`sessions`, `exercisesObserved`, `failures`)
 - `byExercise[exerciseId].failures`
 - `byExercise[exerciseId].reasons[reason]`
+
+### Automatic emission in end-of-session pipeline
+
+`SessionScreen` now wires `ReadinessArtifactPipeline.endSession(...)` at session end.
+If `ORION_READINESS_ARTIFACT_PATH` is set, the Orion JSON artifact is written automatically.
+Regardless of path availability, an in-memory session snapshot is always added to the batch aggregator.

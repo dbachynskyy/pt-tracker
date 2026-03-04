@@ -139,3 +139,9 @@ ATLAS_DIR=/tmp/pt-atlas HELIOS_DIR=/tmp/pt-helios \
 ```
 
 See `docs/cv/CROSS_REPO_CV_REGRESSION_HARNESS.md` for blocker taxonomy and fallback options.
+
+Regression harness parser unit test:
+
+```bash
+node scripts/__tests__/cross-repo-harness-parser.test.js
+```

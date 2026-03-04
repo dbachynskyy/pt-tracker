@@ -43,3 +43,26 @@ bash scripts/run-cross-repo-cv-regression-harness.sh auto
 - In CI: use `fixtures` mode for deterministic no-creds checks.
 - In release-candidate validation: use `live` mode with explicit `ATLAS_DIR` and `HELIOS_DIR`.
 - In mixed environments: use `auto` and fail only if strict live gating is required by release policy.
+
+
+## Evidence fields in JSON artifact
+
+Each result row includes:
+
+- `evidence.selectorExposure[]`
+- `evidence.analyzerRouting[]`
+- `evidence.minimumTestCoverageSignal[]`
+
+Each evidence item has:
+- `file`
+- `line`
+- `pattern`
+- `snippet`
+
+This is used to audit why a check passed (or why evidence is missing).
+
+## Parser unit test
+
+```bash
+node scripts/__tests__/cross-repo-harness-parser.test.js
+```

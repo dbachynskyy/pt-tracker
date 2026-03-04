@@ -216,3 +216,10 @@ Release-candidate matrix/delta artifact:
 
 Built from current final contract + prior final contract. Per-exercise deltas: `improved|regressed|unchanged`.
 Wrapper blocks regressions unless `ALLOW_REALCV_REGRESSION_OVERRIDE=ALLOW`.
+
+
+Trend history guard artifact:
+- `artifacts/realcv-release-trend-history.v1.json`
+- `artifacts/realcv-release-trend-history.md`
+
+Guard fails when any exercise has `consecutive_regressions >= 2` unless `ALLOW_REALCV_REGRESSION_OVERRIDE=ALLOW`.

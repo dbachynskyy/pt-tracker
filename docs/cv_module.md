@@ -168,3 +168,37 @@ See `apps/mobile/src/cv/__tests__/` for:
 - **Anti-cheat unit tests** — one test per heuristic in the checklist above.
 - **Integration smoke test** — `session.integration.test.ts`: full session lifecycle
   with synthetic pose stream.
+
+---
+
+## Calibration + Stabilization (Helios v2)
+
+A pre-count calibration phase now runs before rep counting starts (via `StabilizedRepCounter`).
+It estimates a per-user baseline and verifies minimum observed movement range before enabling counting.
+
+Recommended minimum calibration ranges (default `minRangeByExercise`):
+
+- `squat`: **35°** knee-angle span
+- `pushup`: **30°** elbow-angle span
+- `sit_to_stand`: **35°** knee-angle span
+- `lunge`: **30°** knee-angle span
+- `calf_raise`: **0.03** ankle-foot vertical delta
+- `glute_bridge`: **0.03** hip-height delta (normalized Y)
+- `shoulder_abduction`: **25°** arm-abduction span
+- `heel_raise`: **0.03** ankle-foot vertical delta
+- `knee_extension`: **35°** knee-angle span
+- `plank_hold`: **8°** alignment-angle span
+
+Stabilization policy:
+
+- Temporal smoothing should be enabled in the adapter (EMA default, optional moving window).
+- If frame source becomes `disconnected`, counting is paused.
+- Resume requires `occlusionRecoveryFrames` consecutive clear (`real`) frames before forwarding frames to rep counting.
+
+Fallback guidance:
+
+- If calibration fails (`REJECTED`), keep session in prep mode and prompt guided setup:
+  - "Move through one full comfortable rep"
+  - "Step back so full body is visible"
+  - "Increase lighting / reduce occlusion"
+- If native CV provider is unavailable, inject a mock provider and keep source as `disconnected` to safely avoid false counts.
